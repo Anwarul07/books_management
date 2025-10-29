@@ -88,6 +88,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4000",
     "http://127.0.0.1:4000",
+    "https://anwarbook.onrender.com",
 ]
 CORS_ALLOW_METHODS = (
     "DELETE",
@@ -102,6 +103,7 @@ CORS_ALLOW_METHODS = (
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:4000",
     "http://127.0.0.1:4000",
+    "https://anwarbook.onrender.com",
 ]
 
 
