@@ -19,8 +19,6 @@ from .serializers import (
     CartCreateSerializer,
 )
 
-# Create your views here.
-
 
 @api_view(["GET"])
 def home(request, format=None):
@@ -39,11 +37,6 @@ class booksview(viewsets.ModelViewSet):
     queryset = Books.objects.all()
     serializer_class = BooksCreateSerializers
 
-    # def get_serializer_class(self):
-    #     if self.request.method == "POST":
-    #         return BooksCreateSerializers
-    #     return BooksReadSerializers
-
 
 class authorview(viewsets.ModelViewSet):
     queryset = Author.objects.all()
@@ -53,22 +46,13 @@ class authorview(viewsets.ModelViewSet):
 class categoryview(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategoryCreateSerializers
-    # def get_serializer_class(self):
-    #     if self.request.method == "POST":
-    #         return CategorySerializers
-    #     return CategoryCreateSeralizers
 
 
 class cartview(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
-
-    def get_serializer_class(self):
-        if self.request.method == "POST":
-            return CartCreateSerializer
-        return CartSerializer
+    serializer_class = CartCreateSerializer
 
 
 class userview(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    # permission_classes = [AllowAny]
