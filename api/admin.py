@@ -76,12 +76,12 @@ class BooksAdmin(admin.ModelAdmin):
 class CartAdmin(admin.ModelAdmin):
     list_display = [
         "id",
-        "cart",
-        "book",
-        "quattity",
+        "user",
+        "books",
+        "quantity",
         "added_at",
         "updated_at",
     ]
-    list_filter = ["cart"]
-    search_fields = ["book"]
-    ordering = ["cart"]
+    list_filter = ["user"]
+    search_fields = ["books"]
+    ordering = ["books"]

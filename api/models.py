@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.contrib.auth.models import User
 
 
 # Category models
@@ -133,11 +134,11 @@ class Books(models.Model):
 
 
 class Cart(models.Model):
-    cart = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="user")
-    book = models.ForeignKey(Books, on_delete=models.CASCADE, related_name="book")
-    quattity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user")
+    books = models.ForeignKey(Books, on_delete=models.CASCADE, related_name="book")
+    quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     added_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.book.summary} in wishlist of {self.cart.user.author_name if self.cart.user else 'Anonymous'}"
+        return f"{self.book.title} in cart of {self.user.username if self.cart.user else 'Anonymous'}"

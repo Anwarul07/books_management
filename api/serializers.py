@@ -282,32 +282,16 @@ class CategoryCreateSerializers(serializers.ModelSerializer):
             )
 
 
-class CartSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField(source="user.author_name")
-
-    class Meta:
-        model = Cart
-        fields = [
-            "url",
-            "id",
-            "created_at",
-            "updated_at",
-        ]
-
-
 class CartCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cart
-        fields = [
-            "url",
-            "id",
-        ]
+        fields = ["url", "id", "user", "books", "quantity", "added_at"]
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "password"]
+        fields = ["url", "id", "username", "password"]
         # extra_kwargs = {"password": {"write_only": True}}
 
     def create(self, validated_data):

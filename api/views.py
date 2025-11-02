@@ -15,7 +15,6 @@ from .serializers import (
     AuthorReadSerailizers,
     AuthorCreateSerializers,
     UserSerializer,
-    CartSerializer,
     CartCreateSerializer,
 )
 
