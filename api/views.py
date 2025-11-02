@@ -2,21 +2,21 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import viewsets
+from django.contrib.auth.models import User
 from rest_framework.viewsets import ModelViewSet
 
-from .models import Books, Author, Category, Cart, Wishlist
+from .models import Books, Author, Category, Cart
 from rest_framework.reverse import reverse
 from .serializers import (
-    BooksSerializers,
-    BooksListSerializers,
-    CategoryRead,
-    AuthorRead,
-    AuthorSerializers,
+    BooksCreateSerializers,
+    BooksReadSerializers,
+    CategoryCreateSerializers,
+    CategoryReadSeralizers,
+    AuthorReadSerailizers,
+    AuthorCreateSerializers,
+    UserSerializer,
     CartSerializer,
-    WishlistSerializer,
-    CategorySerializers,
     CartCreateSerializer,
-    WishCreateSeralizer,
 )
 
 # Create your views here.
@@ -37,26 +37,26 @@ def home(request, format=None):
 
 class booksview(viewsets.ModelViewSet):
     queryset = Books.objects.all()
-    # serializer_class = BooksSerializers
+    serializer_class = BooksCreateSerializers
 
-    def get_serializer_class(self):
-        if self.request.method == "POST":
-            return BooksSerializers
-        return BooksListSerializers
+    # def get_serializer_class(self):
+    #     if self.request.method == "POST":
+    #         return BooksCreateSerializers
+    #     return BooksReadSerializers
 
 
 class authorview(viewsets.ModelViewSet):
     queryset = Author.objects.all()
-    serializer_class = AuthorSerializers
+    serializer_class = AuthorCreateSerializers
 
 
 class categoryview(viewsets.ModelViewSet):
     queryset = Category.objects.all()
-    serializer_class = CategorySerializers
+    serializer_class = CategoryCreateSerializers
     # def get_serializer_class(self):
     #     if self.request.method == "POST":
     #         return CategorySerializers
-    #     return CategoryRead
+    #     return CategoryCreateSeralizers
 
 
 class cartview(viewsets.ModelViewSet):
@@ -68,10 +68,7 @@ class cartview(viewsets.ModelViewSet):
         return CartSerializer
 
 
-class wishlistview(viewsets.ModelViewSet):
-    queryset = Wishlist.objects.all()
-
-    def get_serializer_class(self):
-        if self.request.method == "POST":
-            return WishCreateSeralizer
-        return WishlistSerializer
+class userview(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    # permission_classes = [AllowAny]

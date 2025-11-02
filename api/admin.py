@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Books, Category, Author, Cart, Wishlist
+from .models import Books, Category, Author, Cart
 
 
 # Category model admin configuration
@@ -22,6 +22,7 @@ class CategoryAdmin(admin.ModelAdmin):
     ordering = ["category_name"]
 
 
+@admin.register(Author)
 class AuthorAdmin(admin.ModelAdmin):
     list_display = [
         "id",
@@ -43,7 +44,7 @@ class AuthorAdmin(admin.ModelAdmin):
     list_filter = ["author_name", "is_verified"]
     search_fields = ["author_name", "email"]
     ordering = ["author_name"]
-    
+
 
 # Book model admin configuration
 @admin.register(Books)
@@ -68,3 +69,19 @@ class BooksAdmin(admin.ModelAdmin):
     list_filter = ["books_name", "title"]
     search_fields = ["title", "books_name"]
     ordering = ["books_name"]
+
+
+# Cart model admin configuration
+@admin.register(Cart)
+class CartAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "cart",
+        "book",
+        "quattity",
+        "added_at",
+        "updated_at",
+    ]
+    list_filter = ["cart"]
+    search_fields = ["book"]
+    ordering = ["cart"]

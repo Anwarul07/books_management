@@ -1,7 +1,8 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
-# Category models 
+
+# Category models
 class Category(models.Model):
     ORIGIN_CHOICES = [
         ("india", "Indian"),
@@ -68,10 +69,10 @@ class Books(models.Model):
     books_name = models.CharField(max_length=30, unique=True, null=False, blank=False)
     title = models.CharField(max_length=30, unique=True, null=False, blank=False)
     author = models.ForeignKey(
-        Author, on_delete=models.CASCADE, related_name="book_author"
+        Author, on_delete=models.CASCADE, related_name="books_of_author"
     )
     category = models.ForeignKey(
-        Category, on_delete=models.CASCADE, related_name="book_category"
+        Category, on_delete=models.CASCADE, related_name="category_of_books"
     )
     total_pages = models.PositiveIntegerField(
         validators=[MinValueValidator(1)], null=False, blank=False
@@ -132,23 +133,11 @@ class Books(models.Model):
 
 
 class Cart(models.Model):
-    user = models.OneToOneField(
-        Author, on_delete=models.CASCADE, null=True, blank=True, related_name="cart"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"Cart for {self.user.author_name if self.user else 'Anonymous'}"
-
-
-class Wishlist(models.Model):
-    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="wishlists")
-    book = models.ForeignKey(Books, on_delete=models.CASCADE, related_name="wishlisted")
+    cart = models.ForeignKey(Author, on_delete=models.CASCADE, related_name="user")
+    book = models.ForeignKey(Books, on_delete=models.CASCADE, related_name="book")
     quattity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     added_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.book.summary} in wishlist of {self.cart.user.author_name if self.cart.user else 'Anonymous'}"
-
