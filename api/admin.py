@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Books, Category, Author, Cart
+from .models import Books, Category, Author, Cart, CartList
 
 
 # Category model admin configuration
@@ -85,3 +85,12 @@ class CartAdmin(admin.ModelAdmin):
     list_filter = ["user"]
     search_fields = ["books"]
     ordering = ["books"]
+
+
+# CartList model admin configuration
+@admin.register(CartList)
+class CartListAdmin(admin.ModelAdmin):
+    list_display = ["user"]
+    list_filter = ["user"]
+    search_fields = ["'user"]
+    ordering = ["user"]

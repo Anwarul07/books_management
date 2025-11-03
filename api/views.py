@@ -5,7 +5,7 @@ from rest_framework import viewsets
 from django.contrib.auth.models import User
 from rest_framework.viewsets import ModelViewSet
 
-from .models import Books, Author, Category, Cart
+from .models import Books, Author, Category, Cart, CartList
 from rest_framework.reverse import reverse
 from .serializers import (
     BooksCreateSerializers,
@@ -16,6 +16,7 @@ from .serializers import (
     AuthorCreateSerializers,
     UserSerializer,
     CartCreateSerializer,
+    CartListCreateSerializers,
 )
 
 
@@ -50,6 +51,11 @@ class categoryview(viewsets.ModelViewSet):
 class cartview(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
     serializer_class = CartCreateSerializer
+
+
+class cartlistview(viewsets.ModelViewSet):
+    queryset = CartList.objects.all()
+    serializer_class = CartListCreateSerializers
 
 
 class userview(viewsets.ModelViewSet):

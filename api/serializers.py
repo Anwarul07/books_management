@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Books, Author, Category, Cart
+from .models import Books, Author, Category, Cart, CartList
 from decimal import Decimal
 import json
 from django.db.models import F
@@ -282,10 +282,64 @@ class CategoryCreateSerializers(serializers.ModelSerializer):
             )
 
 
+# Cart create seralizers is for creating cart
 class CartCreateSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user", read_only=True)
+    books_name = serializers.CharField(source="books", read_only=True)
+    price = serializers.SerializerMethodField()
+    discount = serializers.SerializerMethodField()
+    sale_price = serializers.SerializerMethodField()
+    total = serializers.SerializerMethodField()
+
     class Meta:
         model = Cart
-        fields = ["url", "id", "user", "books", "quantity", "added_at"]
+        fields = [
+            "url",
+            "id",
+            "user",
+            "username",
+            "books",
+            "books_name",
+            "price",
+            "discount",
+            "sale_price",
+            "quantity",
+            "total",
+            "added_at",
+        ]
+
+    def get_price(self, val):
+        if val.books:
+            return val.books.price
+
+    def get_discount(self, val):
+        if val.books:
+            return val.books.discount
+
+    def get_sale_price(self, val):
+        if val.books.price:
+            price = val.books.price
+            discount = Decimal(val.books.discount / 100)
+            discounAmount = Decimal(price * discount)
+            total = price - discounAmount
+            return total
+
+    def get_total(Self, val):
+        if val.books.price:
+            price = val.books.price
+            discount = Decimal(val.books.discount / 100)
+            discounAmount = Decimal(price * discount)
+            total = price - discounAmount
+            return total * val.quantity
+
+
+# cart list of a user serializers
+class CartListCreateSerializers(serializers.ModelSerializer):
+    carts = CartCreateSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = CartList
+        fields = ["url", "id", "user", "carts"]
 
 
 class UserSerializer(serializers.ModelSerializer):
