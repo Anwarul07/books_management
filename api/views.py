@@ -4,6 +4,10 @@ from rest_framework.response import Response
 from rest_framework import viewsets
 from django.contrib.auth.models import User
 from rest_framework.viewsets import ModelViewSet
+from django.shortcuts import get_object_or_404
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 from .models import Books, Author, Category, Cart, CartList
 from rest_framework.reverse import reverse
@@ -54,6 +58,7 @@ class cartview(viewsets.ModelViewSet):
 
 
 class cartlistview(viewsets.ModelViewSet):
+    # queryset = CartList.objects.filter(carts__isnull=False).distinct()
     queryset = CartList.objects.all()
     serializer_class = CartListCreateSerializers
 

@@ -135,20 +135,19 @@ class Books(models.Model):
 
 class Cart(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="carts")
-    books = models.ForeignKey(Books, on_delete=models.CASCADE, related_name="book")
-    # cart_lists = models.ForeignKey(
-    #     CartList, on_delete=models.CASCADE, related_name="cart_lists"
-    # )
+    books = models.ForeignKey(Books, on_delete=models.CASCADE, related_name="books")
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     added_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.username if self.user else 'Anonymous'}"
+        return f"{self.user}"
 
 
 class CartList(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user")
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="cart_items"
+    )
 
     def __str__(self):
         return self.user.username

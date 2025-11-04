@@ -154,6 +154,9 @@ class BooksCreateSerializers(serializers.ModelSerializer):
             return total
 
 
+4
+
+
 # Author creating seralizer for create author
 class AuthorCreateSerializers(serializers.ModelSerializer):
     books_of_author = BooksReadSerializers(many=True, read_only=True)
@@ -335,11 +338,19 @@ class CartCreateSerializer(serializers.ModelSerializer):
 
 # cart list of a user serializers
 class CartListCreateSerializers(serializers.ModelSerializer):
-    carts = CartCreateSerializer(many=True, read_only=True)
+    items = serializers.SerializerMethodField()
+    username = serializers.CharField(source="user.username", read_only=True)
 
     class Meta:
         model = CartList
-        fields = ["url", "id", "user", "carts"]
+        fields = ["url", "user", "username", "items"]
+
+    def get_items(self, cart_list_instance):
+        context = self.context
+        cart_items_queryset = cart_list_instance.user.carts.all()
+        return CartCreateSerializer(
+            cart_items_queryset, many=True, context=context
+        ).data
 
 
 class UserSerializer(serializers.ModelSerializer):
