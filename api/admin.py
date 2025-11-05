@@ -5,33 +5,10 @@ from .models import (
     Author,
     Cart,
     CartItem,
-    CategoryImage,
-    AuthorImage,
-    BooksImage,
 )
 
-# --- INLINES ---
 
-
-class CategoryImageInline(admin.TabularInline):
-    model = CategoryImage
-    extra = 1
-    fields = ["image", "image_type"]
-
-
-class AuthorImageInline(admin.TabularInline):
-    model = AuthorImage
-    extra = 1
-    fields = ["image", "image_type"]
-
-
-class BooksImageInline(admin.TabularInline):
-    model = BooksImage
-    extra = 1
-    fields = ["image", "image_type"]
-
-
-# --- 1. Category Admin (Correct) ---
+# --- 1. Category Admin ---
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ["id", "category_name", "description", "origin"]
@@ -39,10 +16,9 @@ class CategoryAdmin(admin.ModelAdmin):
     search_fields = ["category_name", "description"]
     ordering = ["category_name"]
     fields = ["category_name", "description", "origin"]
-    inlines = [CategoryImageInline]
 
 
-# --- 2. Author Admin (FIXED) ---
+# --- 2. Author Admin  ---
 @admin.register(Author)
 class AuthorAdmin(admin.ModelAdmin):
     list_display = [
@@ -54,7 +30,6 @@ class AuthorAdmin(admin.ModelAdmin):
         "register_date",
         "date_of_Birth",
     ]
-    inlines = [AuthorImageInline]
 
     list_filter = ["is_verified", "register_date"]
     search_fields = ["author_name", "email", "biography"]
@@ -72,7 +47,7 @@ class AuthorAdmin(admin.ModelAdmin):
     readonly_fields = ["register_date", "id"]
 
 
-# --- 3. Books Admin (FIXED) ---
+# --- 3. Books Admin  ---
 @admin.register(Books)
 class BooksAdmin(admin.ModelAdmin):
 
@@ -91,8 +66,6 @@ class BooksAdmin(admin.ModelAdmin):
     search_fields = ["title", "description"]
     ordering = ["title"]
 
-    inlines = [BooksImageInline]
-
     fields = [
         "title",
         "author",
@@ -103,7 +76,7 @@ class BooksAdmin(admin.ModelAdmin):
     ]
 
 
-# --- 4. Cart Admin (FIXED) ---
+# --- 4. Cart Admin  ---
 @admin.register(Cart)
 class CartStandaloneAdmin(admin.ModelAdmin):
     list_display = ["id", "user"]

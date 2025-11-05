@@ -12,13 +12,10 @@ User = get_user_model()
 from .models import Books, Author, Category, Cart, CartItem
 from rest_framework.reverse import reverse
 from .serializers import (
-    BookImageSerializer,
     BooksReadSerializer,
     BooksCreateSerializer,
-    AuthorImageSerializer,
     AuthorReadSerializer,
     AuthorCreateSerializer,
-    CategoryImageSerializer,
     CategoryReadSerializer,
     CategoryCreateSerializer,
     CartItemSerializer,

@@ -12,66 +12,36 @@ class Category(models.Model):
     ]
     category_name = models.CharField(max_length=20, null=False, blank=False)
     description = models.CharField(max_length=100)
+    cover_image = models.ImageField(upload_to="category/")
+    front_image = models.ImageField(upload_to="category/")
+    behind_image = models.ImageField(upload_to="category/")
+    side_image = models.ImageField(upload_to="category/")
+    top_image = models.ImageField(upload_to="category/")
+    bottom_image = models.ImageField(upload_to="category/")
     origin = models.CharField(max_length=10, choices=ORIGIN_CHOICES, default="india")
 
     def __str__(self):
         return self.category_name
 
 
-class CategoryImage(models.Model):
-    category = models.ForeignKey(
-        Category, on_delete=models.CASCADE, related_name="category_images"
-    )
-    image = models.ImageField(upload_to="category/")
-    image_type = models.CharField(
-        max_length=20,
-        choices=[
-            ("cover", "Cover"),
-            ("front", "Front"),
-            ("behind", "Behind"),
-            ("top", "Top"),
-            ("bottom", "Bottom"),
-            ("side", "  Side"),
-        ],
-    )
-
-    def __str__(self):
-        return f"{self.category.category_name} - {self.get_image_type_display()}"
-
-
 class Author(models.Model):
     author_name = models.CharField(max_length=30, null=False, blank=True)
     email = models.EmailField(unique=True, null=True, blank=True)
+    contact = models.CharField(max_length=10)
+    cover_image = models.ImageField(upload_to="author/")
+    front_image = models.ImageField(upload_to="author/")
+    behind_image = models.ImageField(upload_to="author/")
+    side_image = models.ImageField(upload_to="author/")
+    top_image = models.ImageField(upload_to="author/")
+    bottom_image = models.ImageField(upload_to="author/")
     biography = models.TextField(max_length=200)
     is_verified = models.BooleanField(default=False)
     register_date = models.DateField(auto_now_add=True)
-    contact = models.CharField(max_length=10)
     date_of_Birth = models.DateField()
     short_description = models.TextField()
 
     def __str__(self):
         return self.author_name
-
-
-class AuthorImage(models.Model):
-    author = models.ForeignKey(
-        Author, on_delete=models.CASCADE, related_name="author_images"
-    )
-    image = models.ImageField(upload_to="author/")
-    image_type = models.CharField(
-        max_length=20,
-        choices=[
-            ("cover", "Cover"),
-            ("front", "Front"),
-            ("behind", "Behind"),
-            ("top", "Top"),
-            ("bottom", "Bottom"),
-            ("side", "  Side"),
-        ],
-    )
-
-    def __str__(self):
-        return f"{self.author.author_name} - {self.get_image_type_display()}"
 
 
 class Books(models.Model):
@@ -105,6 +75,12 @@ class Books(models.Model):
     category = models.ForeignKey(
         Category, on_delete=models.CASCADE, related_name="category_of_books"
     )
+    cover_image = models.ImageField(upload_to="books/")
+    front_image = models.ImageField(upload_to="books/")
+    behind_image = models.ImageField(upload_to="books/")
+    side_image = models.ImageField(upload_to="books/")
+    top_image = models.ImageField(upload_to="books/")
+    bottom_image = models.ImageField(upload_to="books/")
     total_pages = models.PositiveIntegerField(
         validators=[MinValueValidator(1)], null=False, blank=False
     )
@@ -164,27 +140,6 @@ class Books(models.Model):
 
     def __str__(self):
         return self.title
-
-
-class BooksImage(models.Model):
-    books = models.ForeignKey(
-        Books, on_delete=models.CASCADE, related_name="books_images"
-    )
-    image = models.ImageField(upload_to="books/")
-    image_type = models.CharField(
-        max_length=20,
-        choices=[
-            ("cover", "Cover"),
-            ("front", "Front"),
-            ("behind", "Behind"),
-            ("top", "Top"),
-            ("bottom", "Bottom"),
-            ("side", "  Side"),
-        ],
-    )
-
-    def __str__(self):
-        return f"{self.books.title} - {self.get_image_type_display()}"
 
 
 class CartItem(models.Model):

@@ -1,31 +1,22 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import (
-    Books,
-    BooksImage,
-    Author,
-    AuthorImage,
-    Category,
-    CategoryImage,
-    CartItem,
-    Cart,
-)
 from decimal import Decimal
 import json
 from django.db.models import F
-
-
-class BookImageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = BooksImage
-        fields = ("image", "image_type")
+from .models import (
+    Books,
+    Author,
+    Category,
+    CartItem,
+    Cart,
+)
 
 
 # Book read details for assign only category detail in any seralizers
 class BooksReadSerializer(serializers.ModelSerializer):
+
     author_name = serializers.SerializerMethodField()
     category_name = serializers.StringRelatedField(source="category")
-    images = BookImageSerializer(source="books_images", many=True, read_only=True)
     sale_price = serializers.DecimalField(
         max_digits=5, decimal_places=2, read_only=True
     )
@@ -39,7 +30,12 @@ class BooksReadSerializer(serializers.ModelSerializer):
             "author_name",  # Added for convenience
             "category",
             "category_name",  # Added for convenience
-            "images",  # Nested list of images
+            "cover_image",
+            "front_image",
+            "behind_image",
+            "side_image",
+            "top_image",
+            "bottom_image",
             "total_pages",
             "isbn",
             "ratings",
@@ -61,24 +57,20 @@ class BooksReadSerializer(serializers.ModelSerializer):
             return val.author.author_name
 
 
-# Author image serailizers
-class AuthorImageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AuthorImage
-        fields = ("image", "image_type")
-
-
 # Author read to assign details of author only in any seralizers
 class AuthorReadSerializer(serializers.ModelSerializer):
-    images = AuthorImageSerializer(source="author_images", many=True, read_only=True)
-
     class Meta:
         model = Author
         fields = [
             "id",
             "author_name",
             "email",
-            "images",
+            "cover_image",
+            "front_image",
+            "behind_image",
+            "side_image",
+            "top_image",
+            "bottom_image",
             "contact",
             "is_verified",
             "biography",
@@ -88,25 +80,20 @@ class AuthorReadSerializer(serializers.ModelSerializer):
         ]
 
 
-class CategoryImageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CategoryImage
-        fields = ("image", "image_type")
-
-
 # Category read details for assign only category detail in any seralizers
 class CategoryReadSerializer(serializers.ModelSerializer):
-    images = CategoryImageSerializer(
-        source="category_images", many=True, read_only=True
-    )
-
     class Meta:
         model = Category
         fields = [
             "id",  # Added 'id' for nesting/read operations
             "category_name",
             "description",
-            "images", 
+            "cover_image",
+            "front_image",
+            "behind_image",
+            "side_image",
+            "top_image",
+            "bottom_image",
             "origin",
         ]
 
@@ -132,6 +119,12 @@ class BooksCreateSerializer(serializers.ModelSerializer):
             "author_name",
             "category",
             "category_name",
+            "cover_image",
+            "front_image",
+            "behind_image",
+            "side_image",
+            "top_image",
+            "bottom_image",
             "total_pages",
             "isbn",
             "ratings",
@@ -182,8 +175,6 @@ class BooksCreateSerializer(serializers.ModelSerializer):
 # Author creating seralizer for create author
 class AuthorCreateSerializer(serializers.ModelSerializer):
     books_of_author = BooksReadSerializer(many=True, read_only=True)
-    images = AuthorImageSerializer(source="author_images", many=True, read_only=True)
-
     totalbook = serializers.SerializerMethodField()
     totalcategory = serializers.SerializerMethodField()
     category_of_books = serializers.SerializerMethodField()
@@ -196,8 +187,13 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
             "author_name",
             "email",
             "contact",
+            "cover_image",
+            "front_image",
+            "behind_image",
+            "side_image",
+            "top_image",
+            "bottom_image",
             "is_verified",
-            "images",
             "biography",
             "register_date",
             "date_of_Birth",
@@ -240,10 +236,6 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
 class CategoryCreateSerializer(serializers.ModelSerializer):
     from django.db.models import F
 
-    images = CategoryImageSerializer(
-        source="category_images", many=True, read_only=True
-    )
-
     category_of_books = BooksReadSerializer(many=True, read_only=True)
 
     totalbook = serializers.SerializerMethodField()
@@ -256,7 +248,12 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
             "url",
             "category_name",
             "description",
-            "images",
+            "cover_image",
+            "front_image",
+            "behind_image",
+            "side_image",
+            "top_image",
+            "bottom_image",
             "origin",
             "category_of_books",
             "totalbook",
@@ -288,7 +285,6 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
                     "ids",
                     "name",
                     "email",
-                    
                 )
                 .distinct()
             )
