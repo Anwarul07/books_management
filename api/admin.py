@@ -11,11 +11,32 @@ from .models import (
 # --- 1. Category Admin ---
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ["id", "category_name", "description", "origin"]
+    list_display = [
+        "id",
+        "category_name",
+        "description",
+        "cover_image",
+        "front_image",
+        "behind_image",
+        "side_image",
+        "top_image",
+        "bottom_image",
+        "origin",
+    ]
     list_filter = ["origin"]
     search_fields = ["category_name", "description"]
     ordering = ["category_name"]
-    fields = ["category_name", "description", "origin"]
+    fields = [
+        "category_name",
+        "cover_image",
+        "front_image",
+        "behind_image",
+        "side_image",
+        "top_image",
+        "bottom_image",
+        "description",
+        "origin",
+    ]
 
 
 # --- 2. Author Admin  ---
@@ -26,18 +47,32 @@ class AuthorAdmin(admin.ModelAdmin):
         "author_name",
         "email",
         "contact",
+        "cover_image",
+        "front_image",
+        "behind_image",
+        "side_image",
+        "top_image",
+        "bottom_image",
+        "biography",
         "is_verified",
         "register_date",
         "date_of_Birth",
+        "short_description",
     ]
 
-    list_filter = ["is_verified", "register_date"]
+    list_filter = ["is_verified", "author_name"]
     search_fields = ["author_name", "email", "biography"]
     ordering = ["author_name"]
     fields = [
         "author_name",
         "email",
         "contact",
+        "cover_image",
+        "front_image",
+        "behind_image",
+        "side_image",
+        "top_image",
+        "bottom_image",
         "is_verified",
         "biography",
         "short_description",
@@ -56,19 +91,33 @@ class BooksAdmin(admin.ModelAdmin):
         "title",
         "author",
         "category",
+        "cover_image",
+        "front_image",
+        "behind_image",
+        "side_image",
+        "top_image",
+        "bottom_image",
+        "isbn",
         "price",
         "discount",
     ]
     list_filter = [
+        "title",
         "category",
         "author",
     ]
-    search_fields = ["title", "description"]
+    search_fields = ["title", "description", "author", "category"]
     ordering = ["title"]
 
     fields = [
         "title",
         "author",
+        "cover_image",
+        "front_image",
+        "behind_image",
+        "side_image",
+        "top_image",
+        "bottom_image",
         "category",
         "description",
         "price",
