@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.models import User
+from decimal import Decimal
 
 
 # Category models
@@ -11,36 +12,66 @@ class Category(models.Model):
     ]
     category_name = models.CharField(max_length=20, null=False, blank=False)
     description = models.CharField(max_length=100)
-    cover_image = models.ImageField(upload_to="category/", null=True, blank=True)
-    cover_front = models.ImageField(upload_to="category/", null=True, blank=True)
-    cover_behind = models.ImageField(upload_to="category/", null=True, blank=True)
-    cover_top = models.ImageField(upload_to="category/", null=True, blank=True)
-    cover_bottom = models.ImageField(upload_to="category/", null=True, blank=True)
-    cover_side = models.ImageField(upload_to="category/", null=True, blank=True)
     origin = models.CharField(max_length=10, choices=ORIGIN_CHOICES, default="india")
 
     def __str__(self):
         return self.category_name
 
 
+class CategoryImage(models.Model):
+    category = models.ForeignKey(
+        Category, on_delete=models.CASCADE, related_name="category_images"
+    )
+    image = models.ImageField(upload_to="category/")
+    image_type = models.CharField(
+        max_length=20,
+        choices=[
+            ("cover", "Cover"),
+            ("front", "Front"),
+            ("behind", "Behind"),
+            ("top", "Top"),
+            ("bottom", "Bottom"),
+            ("side", "  Side"),
+        ],
+    )
+
+    def __str__(self):
+        return f"{self.category.category_name} - {self.get_image_type_display()}"
+
+
 class Author(models.Model):
     author_name = models.CharField(max_length=30, null=False, blank=True)
     email = models.EmailField(unique=True, null=True, blank=True)
-    cover_image = models.ImageField(upload_to="author/", null=True, blank=True)
-    cover_front = models.ImageField(upload_to="author/", null=True, blank=True)
-    cover_behind = models.ImageField(upload_to="author/", null=True, blank=True)
-    cover_top = models.ImageField(upload_to="author/", null=True, blank=True)
-    cover_bottom = models.ImageField(upload_to="author/", null=True, blank=True)
-    cover_side = models.ImageField(upload_to="author/", null=True, blank=True)
     biography = models.TextField(max_length=200)
     is_verified = models.BooleanField(default=False)
-    register_date = models.DateField()
-    contact = models.IntegerField()
-    Date_of_Birth = models.DateField()
+    register_date = models.DateField(auto_now_add=True)
+    contact = models.CharField(max_length=10)
+    date_of_Birth = models.DateField()
     short_description = models.TextField()
 
     def __str__(self):
         return self.author_name
+
+
+class AuthorImage(models.Model):
+    author = models.ForeignKey(
+        Author, on_delete=models.CASCADE, related_name="author_images"
+    )
+    image = models.ImageField(upload_to="author/")
+    image_type = models.CharField(
+        max_length=20,
+        choices=[
+            ("cover", "Cover"),
+            ("front", "Front"),
+            ("behind", "Behind"),
+            ("top", "Top"),
+            ("bottom", "Bottom"),
+            ("side", "  Side"),
+        ],
+    )
+
+    def __str__(self):
+        return f"{self.author.author_name} - {self.get_image_type_display()}"
 
 
 class Books(models.Model):
@@ -52,7 +83,7 @@ class Books(models.Model):
     ]
     LANGUAGE_CHOICES = [
         ("hindi", "Hindi"),
-        ("urdu", "English"),
+        ("urdu", "Urdu"),
         ("english", "English"),
     ]
     BINDING_CHOICES = [
@@ -67,7 +98,6 @@ class Books(models.Model):
         ("special", "Special"),
     ]
 
-    books_name = models.CharField(max_length=30, unique=True, null=False, blank=False)
     title = models.CharField(max_length=30, unique=True, null=False, blank=False)
     author = models.ForeignKey(
         Author, on_delete=models.CASCADE, related_name="books_of_author"
@@ -78,7 +108,7 @@ class Books(models.Model):
     total_pages = models.PositiveIntegerField(
         validators=[MinValueValidator(1)], null=False, blank=False
     )
-    isbn = models.CharField(max_length=14, unique=True, null=True, blank=True)
+    isbn = models.CharField(max_length=17, unique=True, null=True, blank=True)
     ratings = models.DecimalField(
         max_length=2,
         max_digits=2,
@@ -87,12 +117,6 @@ class Books(models.Model):
         null=True,
         blank=True,
     )
-    cover_image = models.ImageField(upload_to="", null=True, blank=True)
-    cover_front = models.ImageField(upload_to="", null=True, blank=True)
-    cover_behind = models.ImageField(upload_to="", null=True, blank=True)
-    cover_top = models.ImageField(upload_to="", null=True, blank=True)
-    cover_bottom = models.ImageField(upload_to="", null=True, blank=True)
-    cover_side = models.ImageField(upload_to="", null=True, blank=True)
     price = models.DecimalField(
         max_length=5,
         max_digits=5,
@@ -128,14 +152,46 @@ class Books(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def sale_price(self):
+        base_price = self.price
+        discount_percentage = self.discount or 0
+
+        if discount_percentage > 0:
+            discount_rate_decimal = Decimal(discount_percentage) / Decimal(100)
+            return round(base_price * (Decimal(1) - discount_rate_decimal), 2)
+        return base_price
+
     def __str__(self):
-        # Return the field that holds the name
-        return self.books_name
+        return self.title
 
 
-class Cart(models.Model):
+class BooksImage(models.Model):
+    books = models.ForeignKey(
+        Books, on_delete=models.CASCADE, related_name="books_images"
+    )
+    image = models.ImageField(upload_to="books/")
+    image_type = models.CharField(
+        max_length=20,
+        choices=[
+            ("cover", "Cover"),
+            ("front", "Front"),
+            ("behind", "Behind"),
+            ("top", "Top"),
+            ("bottom", "Bottom"),
+            ("side", "  Side"),
+        ],
+    )
+
+    def __str__(self):
+        return f"{self.books.title} - {self.get_image_type_display()}"
+
+
+class CartItem(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="carts")
-    books = models.ForeignKey(Books, on_delete=models.CASCADE, related_name="books")
+    books = models.ForeignKey(
+        Books, on_delete=models.CASCADE, related_name="cart_items"
+    )
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     added_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -143,11 +199,26 @@ class Cart(models.Model):
     def __str__(self):
         return f"{self.user}"
 
+    class Meta:
+        unique_together = ("user", "books")
 
-class CartList(models.Model):
-    user = models.OneToOneField(
-        User, on_delete=models.CASCADE, related_name="cart_items"
-    )
+    @property
+    def sale_price(self):
+        base_price = self.books.price
+        discount_percentage = self.books.discount or 0
+
+        if discount_percentage > 0:
+            discount_rate_decimal = Decimal(discount_percentage / Decimal(100))
+            return round(base_price * (Decimal(1) - discount_rate_decimal), 2)
+        return base_price
+
+    @property
+    def total(self):
+        return round(self.sale_price * self.quantity, 2)
+
+
+class Cart(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="cart")
 
     def __str__(self):
         return self.user.username

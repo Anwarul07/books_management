@@ -1,38 +1,51 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Books, Author, Category, Cart, CartList
+from .models import (
+    Books,
+    BooksImage,
+    Author,
+    AuthorImage,
+    Category,
+    CategoryImage,
+    CartItem,
+    Cart,
+)
 from decimal import Decimal
 import json
 from django.db.models import F
 
 
+class BookImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BooksImage
+        fields = ("image", "image_type")
+
+
 # Book read details for assign only category detail in any seralizers
-class BooksReadSerializers(serializers.ModelSerializer):
+class BooksReadSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     category_name = serializers.StringRelatedField(source="category")
-    sale = serializers.SerializerMethodField()
+    images = BookImageSerializer(source="books_images", many=True, read_only=True)
+    sale_price = serializers.DecimalField(
+        max_digits=5, decimal_places=2, read_only=True
+    )
 
     class Meta:
         model = Books
         fields = [
-            "books_name",
+            "id",
             "title",
             "author",
-            "author_name",
+            "author_name",  # Added for convenience
             "category",
-            "category_name",
+            "category_name",  # Added for convenience
+            "images",  # Nested list of images
             "total_pages",
             "isbn",
             "ratings",
-            "cover_image",
-            "cover_front",
-            "cover_behind",
-            "cover_top",
-            "cover_bottom",
-            "cover_side",
             "price",
             "discount",
-            "sale",
+            "sale_price",  # Matched to model @property
             "publications",
             "availablity",
             "language",
@@ -47,69 +60,73 @@ class BooksReadSerializers(serializers.ModelSerializer):
         if val:
             return val.author.author_name
 
-    def get_sale(self, val):
-        if val:
-            price = val.price
-            discount = Decimal(val.discount / 100)
-            discounAmount = Decimal(price * discount)
-            total = price - discounAmount
-            return total
+
+# Author image serailizers
+class AuthorImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AuthorImage
+        fields = ("image", "image_type")
 
 
 # Author read to assign details of author only in any seralizers
-class AuthorReadSerailizers(serializers.ModelSerializer):
+class AuthorReadSerializer(serializers.ModelSerializer):
+    images = AuthorImageSerializer(source="author_images", many=True, read_only=True)
+
     class Meta:
         model = Author
         fields = [
             "id",
             "author_name",
             "email",
-            "cover_image",
-            "cover_front",
-            "cover_behind",
-            "cover_top",
-            "cover_bottom",
-            "cover_side",
+            "images",
+            "contact",
             "is_verified",
             "biography",
             "register_date",
-            "Date_of_Birth",
+            "date_of_Birth",
             "short_description",
         ]
 
 
+class CategoryImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CategoryImage
+        fields = ("image", "image_type")
+
+
 # Category read details for assign only category detail in any seralizers
-class CategoryReadSeralizers(serializers.ModelSerializer):
+class CategoryReadSerializer(serializers.ModelSerializer):
+    images = CategoryImageSerializer(
+        source="category_images", many=True, read_only=True
+    )
 
     class Meta:
         model = Category
         fields = [
+            "id",  # Added 'id' for nesting/read operations
             "category_name",
             "description",
-            "cover_image",
-            "cover_front",
-            "cover_behind",
-            "cover_top",
-            "cover_bottom",
-            "cover_side",
+            "images", 
             "origin",
         ]
 
 
 # Book creating seralizer for create book
-class BooksCreateSerializers(serializers.ModelSerializer):
-    author_details = AuthorReadSerailizers(read_only=True, source="author")
-    category_details = CategoryReadSeralizers(read_only=True, source="category")
+class BooksCreateSerializer(serializers.ModelSerializer):
+    author_details = AuthorReadSerializer(read_only=True, source="author")
+    category_details = serializers.SerializerMethodField()
+
+    category_name = serializers.StringRelatedField(source="category")
+    author_name = serializers.SerializerMethodField()
 
     availablity = serializers.CharField(read_only=True)
-    author_name = serializers.SerializerMethodField()
-    category_name = serializers.StringRelatedField(source="category")
-    sale = serializers.SerializerMethodField()
+    sale_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Books
         fields = [
-            "books_name",
+            "url",
+            "id",
             "title",
             "author",
             "author_name",
@@ -118,15 +135,9 @@ class BooksCreateSerializers(serializers.ModelSerializer):
             "total_pages",
             "isbn",
             "ratings",
-            "cover_image",
-            "cover_front",
-            "cover_behind",
-            "cover_top",
-            "cover_bottom",
-            "cover_side",
             "price",
             "discount",
-            "sale",
+            "sale_price",
             "publications",
             "availablity",
             "language",
@@ -141,11 +152,22 @@ class BooksCreateSerializers(serializers.ModelSerializer):
             "category_details",
         ]
 
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "author_name",
+            "category_name",
+            "sale_price",
+            "author_details",
+            "category_details",
+        ]
+
     def get_author_name(self, val):
         if val:
             return val.author.author_name
 
-    def get_sale(self, val):
+    def get_sale_price(self, val):
         if val:
             price = val.price
             discount = Decimal(val.discount / 100)
@@ -153,20 +175,18 @@ class BooksCreateSerializers(serializers.ModelSerializer):
             total = price - discounAmount
             return total
 
-
-4
+    def get_category_details(self, obj):
+        return CategoryReadSerializer(obj.category).data
 
 
 # Author creating seralizer for create author
-class AuthorCreateSerializers(serializers.ModelSerializer):
-    books_of_author = BooksReadSerializers(many=True, read_only=True)
+class AuthorCreateSerializer(serializers.ModelSerializer):
+    books_of_author = BooksReadSerializer(many=True, read_only=True)
+    images = AuthorImageSerializer(source="author_images", many=True, read_only=True)
 
     totalbook = serializers.SerializerMethodField()
     totalcategory = serializers.SerializerMethodField()
     category_of_books = serializers.SerializerMethodField()
-    # book_category = CategorySerializers(
-    #     read_only=True, source="book_author__category"
-    # )  # add in model if  needed
 
     class Meta:
         model = Author
@@ -176,16 +196,20 @@ class AuthorCreateSerializers(serializers.ModelSerializer):
             "author_name",
             "email",
             "contact",
-            "cover_image",
-            "cover_front",
-            "cover_behind",
-            "cover_top",
-            "cover_bottom",
-            "cover_side",
+            "is_verified",
+            "images",
             "biography",
             "register_date",
-            "Date_of_Birth",
+            "date_of_Birth",
             "short_description",
+            "books_of_author",
+            "totalbook",
+            "category_of_books",
+            "totalcategory",
+        ]
+        read_only_fields = [
+            "register_date",
+            "is_verified",
             "books_of_author",
             "totalbook",
             "category_of_books",
@@ -206,28 +230,21 @@ class AuthorCreateSerializers(serializers.ModelSerializer):
 
     def get_category_of_books(self, val):
         if val:
-            data = (
-                val.books_of_author.annotate(
-                    ids=F("category__id"),
-                    name=F("category__category_name"),
-                    descriptions=F("category__description"),
-                )
-                .values(
-                    "ids",
-                    "name",
-                    "descriptions",
-                    # Add any other fields you need here
-                )
-                .distinct()
-            )
-            return list(data)
+            unique_categories = Category.objects.filter(
+                category_of_books__author=val
+            ).distinct()
+            return CategoryReadSerializer(unique_categories, many=True).data
 
 
 # Category creating seralizer for create book
-class CategoryCreateSerializers(serializers.ModelSerializer):
+class CategoryCreateSerializer(serializers.ModelSerializer):
     from django.db.models import F
 
-    category_of_books = BooksReadSerializers(many=True, read_only=True)
+    images = CategoryImageSerializer(
+        source="category_images", many=True, read_only=True
+    )
+
+    category_of_books = BooksReadSerializer(many=True, read_only=True)
 
     totalbook = serializers.SerializerMethodField()
     authors = serializers.SerializerMethodField()
@@ -239,13 +256,15 @@ class CategoryCreateSerializers(serializers.ModelSerializer):
             "url",
             "category_name",
             "description",
-            "cover_image",
-            "cover_front",
-            "cover_behind",
-            "cover_top",
-            "cover_bottom",
-            "cover_side",
+            "images",
             "origin",
+            "category_of_books",
+            "totalbook",
+            "authors",
+            "totalauthors",
+        ]
+        read_only_fields = [
+            # Fields that are output-only
             "category_of_books",
             "totalbook",
             "authors",
@@ -269,7 +288,7 @@ class CategoryCreateSerializers(serializers.ModelSerializer):
                     "ids",
                     "name",
                     "email",
-                    # Add any other fields you need here
+                    
                 )
                 .distinct()
             )
@@ -286,71 +305,71 @@ class CategoryCreateSerializers(serializers.ModelSerializer):
 
 
 # Cart create seralizers is for creating cart
-class CartCreateSerializer(serializers.ModelSerializer):
+class CartItemSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user", read_only=True)
-    books_name = serializers.CharField(source="books", read_only=True)
+    book_title = serializers.CharField(source="books.title", read_only=True)
+
     price = serializers.SerializerMethodField()
-    discount = serializers.SerializerMethodField()
-    sale_price = serializers.SerializerMethodField()
-    total = serializers.SerializerMethodField()
+    discount = serializers.DecimalField(
+        source="books.discount", max_digits=10, decimal_places=2, read_only=True
+    )
+    total = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    sale_price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, read_only=True
+    )
 
     class Meta:
-        model = Cart
+        model = CartItem
         fields = [
-            "url",
+            # "url",
             "id",
-            "user",
-            "username",
-            "books",
-            "books_name",
+            "user",  # The FK ID to the Cart (Writable for creation/update)
+            "books",  # The FK ID to the Book (Writable for creation/update)
+            "username",  # Read-only output
+            "book_title",
             "price",
             "discount",
             "sale_price",
-            "quantity",
+            "quantity",  # Writable field
             "total",
-            "added_at",
+            "added_at",  # Read-only output
         ]
+        read_only_fields = ["added_at"]
 
     def get_price(self, val):
         if val.books:
             return val.books.price
 
-    def get_discount(self, val):
-        if val.books:
-            return val.books.discount
+    def update(self, instance, validated_data):
+        # Prevent users from changing the book or cart FKs during an update.
+        if "book" in validated_data:
+            validated_data.pop("book")
+        if "cart" in validated_data:
+            validated_data.pop("cart")
 
-    def get_sale_price(self, val):
-        if val.books.price:
-            price = val.books.price
-            discount = Decimal(val.books.discount / 100)
-            discounAmount = Decimal(price * discount)
-            total = price - discounAmount
-            return total
-
-    def get_total(Self, val):
-        if val.books.price:
-            price = val.books.price
-            discount = Decimal(val.books.discount / 100)
-            discounAmount = Decimal(price * discount)
-            total = price - discounAmount
-            return total * val.quantity
+        return super().update(instance, validated_data)
 
 
 # cart list of a user serializers
-class CartListCreateSerializers(serializers.ModelSerializer):
+class CartSerializer(serializers.ModelSerializer):
     items = serializers.SerializerMethodField()
     username = serializers.CharField(source="user.username", read_only=True)
+    sub_total = serializers.SerializerMethodField()
 
     class Meta:
-        model = CartList
-        fields = ["url", "user", "username", "items"]
+        model = Cart
+        fields = ["url", "user", "username", "items", "sub_total"]
+        read_only_fields = ["username"]
 
     def get_items(self, cart_list_instance):
         context = self.context
         cart_items_queryset = cart_list_instance.user.carts.all()
-        return CartCreateSerializer(
-            cart_items_queryset, many=True, context=context
-        ).data
+        return CartItemSerializer(cart_items_queryset, many=True, context=context).data
+
+    def get_sub_total(self, val):
+        cart_items = val.user.carts.all()
+        sub_total = sum(item.total for item in cart_items)
+        return round(sub_total, 2)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -360,6 +379,19 @@ class UserSerializer(serializers.ModelSerializer):
         # extra_kwargs = {"password": {"write_only": True}}
 
     def create(self, validated_data):
-        print(validated_data)
-        user = User.objects.create_user(**validated_data)
+        # 1. Use pop() to safely remove the password from validated_data
+        password = validated_data.pop("password")
+
+        # 2. Create the user object without the password first
+        user = User.objects.create(**validated_data)
+
+        # 3. Use set_password and save to securely hash the password
+        user.set_password(password)
+        user.save()
+
         return user
+
+    # def create(self, validated_data):
+    #     print(validated_data)
+    #     user = User.objects.create_user(**validated_data)
+    #     return user

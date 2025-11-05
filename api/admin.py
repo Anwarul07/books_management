@@ -1,96 +1,121 @@
 from django.contrib import admin
-from .models import Books, Category, Author, Cart, CartList
+from .models import (
+    Books,
+    Category,
+    Author,
+    Cart,
+    CartItem,
+    CategoryImage,
+    AuthorImage,
+    BooksImage,
+)
+
+# --- INLINES ---
 
 
-# Category model admin configuration
+class CategoryImageInline(admin.TabularInline):
+    model = CategoryImage
+    extra = 1
+    fields = ["image", "image_type"]
+
+
+class AuthorImageInline(admin.TabularInline):
+    model = AuthorImage
+    extra = 1
+    fields = ["image", "image_type"]
+
+
+class BooksImageInline(admin.TabularInline):
+    model = BooksImage
+    extra = 1
+    fields = ["image", "image_type"]
+
+
+# --- 1. Category Admin (Correct) ---
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = [
-        "id",
-        "category_name",
-        "description",
-        "cover_image",
-        "cover_front",
-        "cover_behind",
-        "cover_top",
-        "cover_bottom",
-        "cover_side",
-        "origin",
-    ]
-    list_filter = ["category_name", "origin"]
+    list_display = ["id", "category_name", "description", "origin"]
+    list_filter = ["origin"]
     search_fields = ["category_name", "description"]
     ordering = ["category_name"]
+    fields = ["category_name", "description", "origin"]
+    inlines = [CategoryImageInline]
 
 
+# --- 2. Author Admin (FIXED) ---
 @admin.register(Author)
 class AuthorAdmin(admin.ModelAdmin):
     list_display = [
         "id",
         "author_name",
         "email",
-        "cover_image",
-        "cover_front",
-        "cover_behind",
-        "cover_top",
-        "cover_bottom",
-        "cover_side",
-        "biography",
+        "contact",
         "is_verified",
         "register_date",
-        "contact",
-        "Date_of_Birth",
-        "short_description",
+        "date_of_Birth",
     ]
-    list_filter = ["author_name", "is_verified"]
-    search_fields = ["author_name", "email"]
+    inlines = [AuthorImageInline]
+
+    list_filter = ["is_verified", "register_date"]
+    search_fields = ["author_name", "email", "biography"]
     ordering = ["author_name"]
+    fields = [
+        "author_name",
+        "email",
+        "contact",
+        "is_verified",
+        "biography",
+        "short_description",
+        "date_of_Birth",
+        "register_date",
+    ]
+    readonly_fields = ["register_date", "id"]
 
 
-# Book model admin configuration
+# --- 3. Books Admin (FIXED) ---
 @admin.register(Books)
 class BooksAdmin(admin.ModelAdmin):
+
     list_display = [
         "id",
-        "books_name",
         "title",
-        "ratings",
-        "cover_image",
+        "author",
+        "category",
         "price",
-        "publications",
-        "availablity",
-        "language",
-        "binding_types",
-        "edition",
+        "discount",
+    ]
+    list_filter = [
+        "category",
+        "author",
+    ]
+    search_fields = ["title", "description"]
+    ordering = ["title"]
+
+    inlines = [BooksImageInline]
+
+    fields = [
+        "title",
+        "author",
+        "category",
         "description",
-        "publication_date",
-        "created_at",
-        "updated_at",
+        "price",
+        "discount",
     ]
-    list_filter = ["books_name", "title"]
-    search_fields = ["title", "books_name"]
-    ordering = ["books_name"]
 
 
-# Cart model admin configuration
+# --- 4. Cart Admin (FIXED) ---
 @admin.register(Cart)
-class CartAdmin(admin.ModelAdmin):
-    list_display = [
-        "id",
+class CartStandaloneAdmin(admin.ModelAdmin):
+    list_display = ["id", "user"]
+    search_fields = ["user__username"]
+    list_filter = [
         "user",
-        "books",
-        "quantity",
-        "added_at",
-        "updated_at",
     ]
-    list_filter = ["user"]
-    search_fields = ["books"]
-    ordering = ["books"]
+    ordering = ["user__username"]
+    # fields = ["user"]
 
 
-# CartList model admin configuration
-@admin.register(CartList)
-class CartListAdmin(admin.ModelAdmin):
-    list_display = ["user"]
-    list_filter = ["user"]
-    search_fields = ["'user"]
-    ordering = ["user"]
+@admin.register(CartItem)
+class CartItemStandaloneAdmin(admin.ModelAdmin):
+    list_display = ["id", "user", "books", "quantity"]
+    search_fields = ["user__username", "books__title"]

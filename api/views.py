@@ -9,18 +9,21 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
-from .models import Books, Author, Category, Cart, CartList
+from .models import Books, Author, Category, Cart, CartItem
 from rest_framework.reverse import reverse
 from .serializers import (
-    BooksCreateSerializers,
-    BooksReadSerializers,
-    CategoryCreateSerializers,
-    CategoryReadSeralizers,
-    AuthorReadSerailizers,
-    AuthorCreateSerializers,
+    BookImageSerializer,
+    BooksReadSerializer,
+    BooksCreateSerializer,
+    AuthorImageSerializer,
+    AuthorReadSerializer,
+    AuthorCreateSerializer,
+    CategoryImageSerializer,
+    CategoryReadSerializer,
+    CategoryCreateSerializer,
+    CartItemSerializer,
+    CartSerializer,
     UserSerializer,
-    CartCreateSerializer,
-    CartListCreateSerializers,
 )
 
 
@@ -39,28 +42,27 @@ def home(request, format=None):
 
 class booksview(viewsets.ModelViewSet):
     queryset = Books.objects.all()
-    serializer_class = BooksCreateSerializers
+    serializer_class = BooksCreateSerializer
 
 
 class authorview(viewsets.ModelViewSet):
     queryset = Author.objects.all()
-    serializer_class = AuthorCreateSerializers
+    serializer_class = AuthorCreateSerializer
 
 
 class categoryview(viewsets.ModelViewSet):
     queryset = Category.objects.all()
-    serializer_class = CategoryCreateSerializers
+    serializer_class = CategoryCreateSerializer
+
+
+class cartitemview(viewsets.ModelViewSet):
+    queryset = CartItem.objects.all()
+    serializer_class = CartItemSerializer
 
 
 class cartview(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
-    serializer_class = CartCreateSerializer
-
-
-class cartlistview(viewsets.ModelViewSet):
-    # queryset = CartList.objects.filter(carts__isnull=False).distinct()
-    queryset = CartList.objects.all()
-    serializer_class = CartListCreateSerializers
+    serializer_class = CartSerializer
 
 
 class userview(viewsets.ModelViewSet):
