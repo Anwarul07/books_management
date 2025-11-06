@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
-from .views import home, booksview, cartview, userview, cartitemview
+from .views import home, booksview, cartview, userview, cartitemview, stats
 from rest_framework.routers import DefaultRouter
 from . import views
 from django.conf import settings
