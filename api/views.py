@@ -8,8 +8,17 @@ from rest_framework.viewsets import ModelViewSet
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.permissions import (
+    AllowAny,
+    IsAdminUser,
+    IsAuthenticated,
+    IsAuthenticatedOrReadOnly,
+)
 
 User = get_user_model()
+from .filters import BooksFilter, CategoryFilter
 
 from .models import Books, Author, Category, Cart, CartItem
 from rest_framework.reverse import reverse
@@ -28,6 +37,30 @@ from .serializers import (
 
 class booksview(viewsets.ModelViewSet):
     serializer_class = BooksCreateSerializer
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAdminUser]
+
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    # filterset_class = BooksFilter
+    filterset_fields = [
+        "title",
+        "price",
+        "language",
+        "availablity",
+        "binding_types",
+        "edition",
+        "ratings",
+        "isbn",
+    ]
+    search_fields = [
+        "=title",
+        "category__category_name",
+        "author__author_name",
+        "binding_types",
+        "language",
+        "price",
+    ]
+    ordering_fields = ["title", "price", "availablity", "category__category_name"]
 
     def get_queryset(self):
         queryset = Books.objects.select_related("author", "category").filter(
@@ -70,6 +103,8 @@ class authorview(viewsets.ModelViewSet):
 class categoryview(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategoryCreateSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = CategoryFilter
 
 
 class cartitemview(viewsets.ModelViewSet):

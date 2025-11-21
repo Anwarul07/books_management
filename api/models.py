@@ -2,6 +2,24 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.models import User
 from decimal import Decimal
+from django.contrib.auth.models import AbstractUser
+from .managers import CustomUserManager  # managers.py से import करें
+from django.conf import settings
+
+
+class CustomUser(AbstractUser):
+    ADMIN = "admin"
+    AUTHOR = "author"
+    BASIC_USER = "basic_user"
+    ROLE_CHOICES = ((ADMIN, "Admin"), (AUTHOR, "Author"), (BASIC_USER, "Basic User"))
+    USERNAME_FIELD = "username"
+    REQUIRED_FIELDS = ["email"]
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=BASIC_USER)
+
+    objects = CustomUserManager()
+
+    def __str__(self):
+        return self.username
 
 
 # Category models
@@ -25,6 +43,12 @@ class Category(models.Model):
 
 
 class Author(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="author_profile",
+    )
     author_name = models.CharField(max_length=30, null=False, blank=True)
     email = models.EmailField(unique=True, null=True, blank=True)
     contact = models.CharField(max_length=10)
@@ -70,7 +94,9 @@ class Books(models.Model):
 
     title = models.CharField(max_length=30, unique=True, null=False, blank=False)
     author = models.ForeignKey(
-        Author, on_delete=models.CASCADE, related_name="books_of_author"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="books_of_author",
     )
     category = models.ForeignKey(
         Category, on_delete=models.CASCADE, related_name="category_of_books"
@@ -143,7 +169,9 @@ class Books(models.Model):
 
 
 class CartItem(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="carts")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="carts"
+    )
     books = models.ForeignKey(
         Books, on_delete=models.CASCADE, related_name="cart_items"
     )
@@ -173,7 +201,22 @@ class CartItem(models.Model):
 
 
 class Cart(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="cart")
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cart"
+    )
 
     def __str__(self):
         return self.user.username
+
+
+class BasicUserProfile(models.Model):
+    # Basic User (जो CustomUser है) से One-to-One Link
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="basic_profile",
+    )
+
+    def __str__(self):
+        return f"Profile of Basic User: {self.user.username}"

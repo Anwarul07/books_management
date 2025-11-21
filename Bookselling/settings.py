@@ -129,3 +129,9 @@ STORAGES = {
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_URL = "static/"
+
+
+# settings.py
+REST_FRAMEWORK = {
+    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"]
+}

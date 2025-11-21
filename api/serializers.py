@@ -371,8 +371,20 @@ class CartSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["url", "id", "username", "password"]
-        # extra_kwargs = {"password": {"write_only": True}}
+        fields = [
+            "url",
+            "id",
+            "first_name",
+            "last_name",
+            "username",
+            "email",
+            "password",
+            "date_joined",
+        ]
+        extra_kwargs = {
+            "date_joined": {"read_only": True},
+            "password": {"write_only": True},
+        }
 
     def create(self, validated_data):
         # 1. Use pop() to safely remove the password from validated_data
