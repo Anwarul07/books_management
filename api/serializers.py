@@ -3,6 +3,9 @@ from rest_framework import serializers
 from decimal import Decimal
 import json
 from django.db.models import F
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from .models import (
     Books,
     Author,
@@ -24,7 +27,7 @@ class BooksReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Books
         fields = [
-            "id",
+            # "id",
             "title",
             "author",
             "author_name",  # Added for convenience
@@ -62,7 +65,6 @@ class AuthorReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Author
         fields = [
-            "id",
             "author_name",
             "email",
             "cover_image",
@@ -85,7 +87,7 @@ class CategoryReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = [
-            "id",  # Added 'id' for nesting/read operations
+            # "id",  # Added 'id' for nesting/read operations
             "category_name",
             "description",
             "cover_image",
@@ -112,8 +114,8 @@ class BooksCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Books
         fields = [
-            "url",
-            "id",
+            # "url",
+            # "id",
             "title",
             "author",
             "author_name",
@@ -146,7 +148,7 @@ class BooksCreateSerializer(serializers.ModelSerializer):
         ]
 
         read_only_fields = [
-            "id",
+            # "id",
             "created_at",
             "updated_at",
             "author_name",
@@ -182,8 +184,7 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Author
         fields = [
-            "url",
-            "id",
+            # "url",
             "author_name",
             "email",
             "contact",
@@ -245,7 +246,7 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = [
-            "url",
+            # "url",
             "category_name",
             "description",
             "cover_image",
@@ -277,12 +278,12 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
         if val:
             data = (
                 val.category_of_books.annotate(
-                    ids=F("author__id"),
+                    # ids=F("author__id"),
                     name=F("author__author_name"),
                     email=F("author__email"),
                 )
                 .values(
-                    "ids",
+                    # "ids",
                     "name",
                     "email",
                 )
@@ -318,7 +319,7 @@ class CartItemSerializer(serializers.ModelSerializer):
         model = CartItem
         fields = [
             # "url",
-            "id",
+            # "id",
             "user",  # The FK ID to the Cart (Writable for creation/update)
             "books",  # The FK ID to the Book (Writable for creation/update)
             "username",  # Read-only output
@@ -354,7 +355,7 @@ class CartSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Cart
-        fields = ["url", "user", "username", "items", "sub_total"]
+        fields = ["user", "username", "items", "sub_total"]
         read_only_fields = ["username"]
 
     def get_items(self, cart_list_instance):
@@ -372,8 +373,8 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "url",
-            "id",
+            # "url",
+            # "id",
             "first_name",
             "last_name",
             "username",

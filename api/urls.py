@@ -14,7 +14,7 @@ router.register("author", views.authorview, basename="author")
 router.register("category", views.categoryview, basename="category")
 router.register("cartlist", views.cartitemview, basename="cartlist")
 router.register("cart", views.cartview, basename="cart")
-router.register("user", views.userview, basename="user")
+router.register("user", views.userview, basename="customuser")
 
 
 urlpatterns = [

@@ -43,7 +43,6 @@ class CategoryAdmin(admin.ModelAdmin):
 @admin.register(Author)
 class AuthorAdmin(admin.ModelAdmin):
     list_display = [
-        "id",
         "author_name",
         "email",
         "contact",
@@ -79,7 +78,7 @@ class AuthorAdmin(admin.ModelAdmin):
         "date_of_Birth",
         "register_date",
     ]
-    readonly_fields = ["register_date", "id"]
+    readonly_fields = ["register_date"]
 
 
 # --- 3. Books Admin  ---
