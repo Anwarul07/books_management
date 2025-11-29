@@ -3,45 +3,75 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.models import User
 from decimal import Decimal
 from django.contrib.auth.models import AbstractUser
-from .managers import CustomUserManager  # managers.py से import करें
+from .managers import CustomUserManager
 from django.conf import settings
 
 
+# ---Custom user Model ---
 class CustomUser(AbstractUser):
+    # --- Roles ---
     ADMIN = "admin"
     AUTHOR = "author"
     BASIC_USER = "basic_user"
-    ROLE_CHOICES = ((ADMIN, "Admin"), (AUTHOR, "Author"), (BASIC_USER, "Basic User"))
-    USERNAME_FIELD = "username"
-    REQUIRED_FIELDS = ["email"]
+    ROLE_CHOICES = (
+        (ADMIN, "Admin"),
+        (AUTHOR, "Author"),
+        (BASIC_USER, "Basic User"),
+    )
+
+    # --- User Info ---
+    mobile = models.CharField(max_length=10, unique=True)
+    email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=BASIC_USER)
 
+    # --- Optional Images ---
+    cover_image = models.ImageField(upload_to="users/", blank=True, null=True)
+    front_image = models.ImageField(upload_to="users/", blank=True, null=True)
+    behind_image = models.ImageField(upload_to="users/", blank=True, null=True)
+    side_image = models.ImageField(upload_to="users/", blank=True, null=True)
+    top_image = models.ImageField(upload_to="users/", blank=True, null=True)
+    bottom_image = models.ImageField(upload_to="users/", blank=True, null=True)
+
+    # --- Custom Manager ---
     objects = CustomUserManager()
 
+    # --- Authentication ---
+    USERNAME_FIELD = "username"
+    REQUIRED_FIELDS = ["email", "mobile"]
+
+    # --- String Representation ---
     def __str__(self):
         return self.username
 
 
-# Category models
+# ---Category Model ---
 class Category(models.Model):
     ORIGIN_CHOICES = [
         ("india", "Indian"),
         ("foreign", "Foreign"),
     ]
-    category_name = models.CharField(max_length=20, null=False, blank=False)
-    description = models.CharField(max_length=100)
-    cover_image = models.ImageField(upload_to="category/")
-    front_image = models.ImageField(upload_to="category/")
-    behind_image = models.ImageField(upload_to="category/")
-    side_image = models.ImageField(upload_to="category/")
-    top_image = models.ImageField(upload_to="category/")
-    bottom_image = models.ImageField(upload_to="category/")
+
+    category_name = models.CharField(max_length=50, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    # Images (optional)
+    cover_image = models.ImageField(upload_to="category/", blank=True, null=True)
+    front_image = models.ImageField(upload_to="category/", blank=True, null=True)
+    behind_image = models.ImageField(upload_to="category/", blank=True, null=True)
+    side_image = models.ImageField(upload_to="category/", blank=True, null=True)
+    top_image = models.ImageField(upload_to="category/", blank=True, null=True)
+    bottom_image = models.ImageField(upload_to="category/", blank=True, null=True)
+
     origin = models.CharField(max_length=10, choices=ORIGIN_CHOICES, default="india")
+
+    class Meta:
+        ordering = ["category_name"]
 
     def __str__(self):
         return self.category_name
 
 
+# ---Author user Model ---
 class Author(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -49,123 +79,148 @@ class Author(models.Model):
         primary_key=True,
         related_name="author_profile",
     )
-    author_name = models.CharField(max_length=30, null=False, blank=True)
-    email = models.EmailField(unique=True, null=True, blank=True)
-    contact = models.CharField(max_length=10)
-    cover_image = models.ImageField(upload_to="author/")
-    front_image = models.ImageField(upload_to="author/")
-    behind_image = models.ImageField(upload_to="author/")
-    side_image = models.ImageField(upload_to="author/")
-    top_image = models.ImageField(upload_to="author/")
-    bottom_image = models.ImageField(upload_to="author/")
     biography = models.TextField(max_length=200)
     is_verified = models.BooleanField(default=False)
-    register_date = models.DateField(auto_now_add=True)
-    date_of_Birth = models.DateField()
+    date_of_birth = models.DateField()
     short_description = models.TextField()
 
     def __str__(self):
-        return self.author_name
+        return self.user.username
 
 
+from django.db import models
+from django.conf import settings
+from decimal import Decimal
+from django.core.validators import MinValueValidator, MaxValueValidator
+
+
+# ---Book Model ---
 class Books(models.Model):
+
+    # ------------ Choices ------------
     AVAILABILITY_CHOICES = [
         ("available", "Available"),
         ("borrowed", "Borrowed"),
         ("maintenance", "Under Maintenance"),
         ("pending", "Pending for Approval"),
     ]
+
     LANGUAGE_CHOICES = [
         ("hindi", "Hindi"),
         ("urdu", "Urdu"),
         ("english", "English"),
     ]
+
     BINDING_CHOICES = [
         ("hardcover", "Hardcover"),
-        ("softcover", "Softcover/Papercover"),
-        ("stiching", "Stiching"),
+        ("softcover", "Softcover / Papercover"),
+        ("stitching", "Stitching"),
         ("spiral", "Spiral"),
     ]
+
     EDITION_CHOICES = [
         ("limited", "Limited"),
         ("bulk", "Bulk"),
         ("special", "Special"),
     ]
 
-    title = models.CharField(max_length=30, unique=True, null=False, blank=False)
+    # ------------ Main Fields ------------
+    title = models.CharField(max_length=50, unique=True)
+
     author = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        Author,
         on_delete=models.CASCADE,
         related_name="books_of_author",
     )
+
     category = models.ForeignKey(
-        Category, on_delete=models.CASCADE, related_name="category_of_books"
+        "Category", on_delete=models.CASCADE, related_name="category_of_books"
     )
-    cover_image = models.ImageField(upload_to="books/")
-    front_image = models.ImageField(upload_to="books/")
-    behind_image = models.ImageField(upload_to="books/")
-    side_image = models.ImageField(upload_to="books/")
-    top_image = models.ImageField(upload_to="books/")
-    bottom_image = models.ImageField(upload_to="books/")
-    total_pages = models.PositiveIntegerField(
-        validators=[MinValueValidator(1)], null=False, blank=False
-    )
+
+    # ------------ Images ------------
+    cover_image = models.ImageField(upload_to="books/", blank=True, null=True)
+    front_image = models.ImageField(upload_to="books/", blank=True, null=True)
+    behind_image = models.ImageField(upload_to="books/", blank=True, null=True)
+    side_image = models.ImageField(upload_to="books/", blank=True, null=True)
+    top_image = models.ImageField(upload_to="books/", blank=True, null=True)
+    bottom_image = models.ImageField(upload_to="books/", blank=True, null=True)
+
+    # ------------ Book Details ------------
+    total_pages = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     isbn = models.CharField(max_length=17, unique=True, null=True, blank=True)
+
     ratings = models.DecimalField(
-        max_length=2,
         max_digits=2,
         decimal_places=1,
         validators=[MinValueValidator(0.0), MaxValueValidator(5.0)],
         null=True,
         blank=True,
     )
+
     price = models.DecimalField(
-        max_length=5,
-        max_digits=5,
-        decimal_places=2,
-        null=False,
-        blank=False,
-        validators=[MinValueValidator(0.0)],
+        max_digits=7, decimal_places=2, validators=[MinValueValidator(0)]
     )
+
     discount = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
+        null=True, blank=True, validators=[MinValueValidator(0)]
     )
+
     publications = models.CharField(
         max_length=100,
         blank=True,
         null=True,
         default="Anwar Publications",
     )
-    availablity = models.CharField(
+
+    availability = models.CharField(
         max_length=20, choices=AVAILABILITY_CHOICES, default="pending"
     )
+
     language = models.CharField(
-        max_length=20, choices=LANGUAGE_CHOICES, default="hindi"
+        max_length=20,
+        choices=LANGUAGE_CHOICES,
+        default="hindi",
     )
+
     binding_types = models.CharField(
-        max_length=20, choices=BINDING_CHOICES, default="softcover"
+        max_length=20,
+        choices=BINDING_CHOICES,
+        default="softcover",
     )
+
     edition = models.CharField(max_length=20, choices=EDITION_CHOICES, default="bulk")
+
     description = models.TextField()
     summary = models.TextField(null=True, blank=True)
+
     publication_date = models.DateField()
+
+    # ------------ Auto Fields ------------
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # ------------ Computed Field ------------
     @property
     def sale_price(self):
-        base_price = self.price
-        discount_percentage = self.discount or 0
+        """Price after discount"""
+        if not self.discount:
+            return self.price
 
-        if discount_percentage > 0:
-            discount_rate_decimal = Decimal(discount_percentage) / Decimal(100)
-            return round(base_price * (Decimal(1) - discount_rate_decimal), 2)
-        return base_price
+        discount_decimal = Decimal(self.discount) / Decimal(100)
+        return round(self.price * (1 - discount_decimal), 2)
 
     def __str__(self):
         return self.title
+
+    class Meta:
+        ordering = ["title"]
+
+
+# ---Cartitem user Model ---
+from django.db import models
+from django.conf import settings
+from django.core.validators import MinValueValidator
+from decimal import Decimal
 
 
 class CartItem(models.Model):
@@ -173,33 +228,38 @@ class CartItem(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="carts"
     )
     books = models.ForeignKey(
-        Books, on_delete=models.CASCADE, related_name="cart_items"
+        "Books", on_delete=models.CASCADE, related_name="cart_items"
     )
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     added_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f"{self.user}"
-
     class Meta:
         unique_together = ("user", "books")
+        ordering = ["-added_at"]
 
+    def __str__(self):
+        return f"{self.user.username} → {self.books.title}"
+
+    # --- Calculated Sale Price (single book price after discount)
     @property
     def sale_price(self):
-        base_price = self.books.price
-        discount_percentage = self.books.discount or 0
+        price = Decimal(self.books.price)
+        discount = Decimal(self.books.discount or 0)
 
-        if discount_percentage > 0:
-            discount_rate_decimal = Decimal(discount_percentage / Decimal(100))
-            return round(base_price * (Decimal(1) - discount_rate_decimal), 2)
-        return base_price
+        if discount > 0:
+            discount_rate = discount / Decimal(100)
+            return round(price * (Decimal(1) - discount_rate), 2)
 
+        return round(price, 2)
+
+    # --- Total = sale price × quantity
     @property
     def total(self):
         return round(self.sale_price * self.quantity, 2)
 
 
+# ---Cart Model ---
 class Cart(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cart"
@@ -207,16 +267,3 @@ class Cart(models.Model):
 
     def __str__(self):
         return self.user.username
-
-
-class BasicUserProfile(models.Model):
-    # Basic User (जो CustomUser है) से One-to-One Link
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        primary_key=True,
-        related_name="basic_profile",
-    )
-
-    def __str__(self):
-        return f"Profile of Basic User: {self.user.username}"

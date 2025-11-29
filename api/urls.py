@@ -1,6 +1,15 @@
 from django.contrib import admin
 from django.urls import path, include
-from .views import home, booksview, cartview, userview, cartitemview, stats
+from .views import (
+    home,
+    booksview,
+    authorview,
+    categoryview,
+    CartItemView,
+    cartview,
+    userview,
+    stats,
+)
 from rest_framework.routers import DefaultRouter
 from . import views
 from django.conf import settings
@@ -12,9 +21,9 @@ router = DefaultRouter()
 router.register("books", views.booksview, basename="books")
 router.register("author", views.authorview, basename="author")
 router.register("category", views.categoryview, basename="category")
-router.register("cartlist", views.cartitemview, basename="cartlist")
+router.register("cartitem", views.CartItemView, basename="cartitem")
 router.register("cart", views.cartview, basename="cart")
-router.register("user", views.userview, basename="customuser")
+router.register("register", views.userview, basename="customuser")
 
 
 urlpatterns = [
