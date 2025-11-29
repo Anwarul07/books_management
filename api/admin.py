@@ -80,6 +80,14 @@ class CustomUserAdmin(BaseUserAdmin):
         ),
     )
 
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(
+            request, queryset, search_term
+        )
+        # Restrict users shown in autocomplete
+        queryset = queryset.filter(role="basic_user")
+        return queryset, use_distinct
+
 
 # Register CustomUser with CustomUserAdmin
 
@@ -118,6 +126,11 @@ class AuthorAdmin(admin.ModelAdmin):
         return obj.user.mobile
 
     get_mobile.short_description = "Mobile"
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "user":
+            kwargs["queryset"] = CustomUser.objects.filter(role="author")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 # --- 3. Category Admin ---
@@ -184,7 +197,7 @@ class BooksAdmin(admin.ModelAdmin):
         "isbn",
         "description",
         "summary",
-        "author__username",
+        "author__user__username",
         "category__category_name",
     ]
 
@@ -254,13 +267,21 @@ class BooksAdmin(admin.ModelAdmin):
 
     # Custom display fields
     def author_name(self, obj):
-        return obj.author.username
+        return f"{obj.author.user.first_name} {obj.author.user.last_name}"
 
     def category_name(self, obj):
         return obj.category.category_name
 
     def sale_price(self, obj):
         return obj.sale_price
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "author":
+            # Sirf Author role wale users show honge
+            from .models import Author
+
+            kwargs["queryset"] = Author.objects.filter(user__role="author")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 # --- 4. CartItem Admin ---
@@ -269,10 +290,17 @@ class CartItemStandaloneAdmin(admin.ModelAdmin):
     list_display = ["id", "user", "books", "quantity", "added_at"]
     list_filter = ["user", "books"]
     search_fields = ["user__username", "books__title"]
-    autocomplete_fields = ["user", "books"]
+    # autocomplete_fields = ["user", "books"]
     readonly_fields = ["added_at"]
     ordering = ["-added_at"]
     list_editable = ["quantity"]
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        from .models import CustomUser
+
+        if db_field.name == "user":
+            kwargs["queryset"] = CustomUser.objects.filter(role="basic_user")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 # --- 4. Cart Admin  ---
@@ -290,3 +318,10 @@ class CartStandaloneAdmin(admin.ModelAdmin):
     @admin.display(description="Mobile")
     def user_mobile(self, obj):
         return obj.user.mobile
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "user":
+            from .models import CustomUser
+
+            kwargs["queryset"] = CustomUser.objects.filter(role="basic_user")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)

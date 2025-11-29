@@ -4,9 +4,10 @@ from decimal import Decimal
 from .models import CustomUser
 from django.core.exceptions import ObjectDoesNotExist  # इसे ऊपर import करें
 from django.db.models import F
-from django.contrib.auth import get_user_model
 
-User = get_user_model()
+# from django.contrib.auth import get_user_model
+# User = get_user_model()
+
 from .models import (
     Books,
     Author,
@@ -22,6 +23,9 @@ class BooksReadSerializer(serializers.ModelSerializer):
     category_name = serializers.StringRelatedField(source="category")
     sale_price = serializers.DecimalField(
         max_digits=7, decimal_places=2, read_only=True
+    )
+    author = serializers.PrimaryKeyRelatedField(
+        queryset=Author.objects.filter(user__role=CustomUser.AUTHOR)
     )
 
     class Meta:
@@ -68,6 +72,13 @@ class BooksReadSerializer(serializers.ModelSerializer):
             return obj.author.user.username
             # return obj.author.first_name + " " + obj.author.last_name
 
+    def validate_author(self, value):
+        if value.user.role != "author":
+            raise serializers.ValidationError(
+                "Only Author users can be assigned as book author."
+            )
+        return value
+
     # def get_author_name(self, val):
     #     if val:
     #         return val.author.author_name
@@ -89,6 +100,9 @@ class AuthorReadSerializer(serializers.ModelSerializer):
     side_image = serializers.ImageField(source="user.side_image", read_only=True)
     top_image = serializers.ImageField(source="user.top_image", read_only=True)
     bottom_image = serializers.ImageField(source="user.bottom_image", read_only=True)
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.filter(role="author")
+    )
 
     class Meta:
         model = Author
@@ -125,6 +139,13 @@ class AuthorReadSerializer(serializers.ModelSerializer):
     def get_author_name(self, obj):
         return obj.user.first_name + " " + obj.user.last_name
 
+    def validate_user(self, value):
+        if value.role != "author":
+            raise serializers.ValidationError(
+                "Only Author users can be assigned as book author."
+            )
+        return value
+
 
 # ---------------- Category Read Serializer for assign only Category detail in any seralizers ----------------
 class CategoryReadSerializer(serializers.ModelSerializer):
@@ -152,6 +173,9 @@ class BooksCreateSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     category_name = serializers.StringRelatedField(source="category")
     sale_price = serializers.SerializerMethodField()
+    author = serializers.PrimaryKeyRelatedField(
+        queryset=Author.objects.filter(user__role=CustomUser.AUTHOR)
+    )
 
     class Meta:
         model = Books
@@ -207,6 +231,13 @@ class BooksCreateSerializer(serializers.ModelSerializer):
         total = obj.price * (Decimal(1) - discount_percentage)
         return round(total, 2)
 
+    def validate_author(self, value):
+        if value.user.role != "author":
+            raise serializers.ValidationError(
+                "Only Author users can be assigned as book author."
+            )
+        return value
+
 
 # ---------------- Author Create Serializer for Author details----------------
 class AuthorCreateSerializer(serializers.ModelSerializer):
@@ -233,6 +264,9 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
     totalbooks = serializers.SerializerMethodField()
     totalcategory = serializers.SerializerMethodField()
     category_of_books = serializers.SerializerMethodField()
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.filter(role="author")
+    )
 
     class Meta:
         model = Author
@@ -272,6 +306,13 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
             "category_of_books",
             "totalcategory",
         ]
+
+    def validate_user(self, value):
+        if value.role != "author":
+            raise serializers.ValidationError(
+                "Only Author users can be assigned as book author."
+            )
+        return value
 
     # ------------------------ AGGREGATION ------------------------
 
@@ -356,6 +397,9 @@ class CartItemSerializer(serializers.ModelSerializer):
 
     sale_price = serializers.SerializerMethodField()
     total = serializers.SerializerMethodField()
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.filter(role="basic_user")
+    )
 
     class Meta:
         model = CartItem
@@ -385,6 +429,13 @@ class CartItemSerializer(serializers.ModelSerializer):
     def get_total(self, obj):
         return obj.total  # model property calculation
 
+    def validate_user(self, value):
+        if value.role != "basic_user":
+            raise serializers.ValidationError(
+                "Only buyer users can be assigned as cartitem author."
+            )
+        return value
+
     # ---------- Restrict update (user/books cannot change) ----------
     def update(self, instance, validated_data):
         validated_data.pop("user", None)
@@ -403,6 +454,9 @@ class CartSerializer(serializers.ModelSerializer):
 
     items = serializers.SerializerMethodField()
     total_amount = serializers.SerializerMethodField()
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.filter(role="basic_user")
+    )
 
     class Meta:
         model = Cart
@@ -410,7 +464,6 @@ class CartSerializer(serializers.ModelSerializer):
             # "url",
             "id",
             "user",
-            "username",
             "username",
             "first_name",
             "last_name",
@@ -430,10 +483,23 @@ class CartSerializer(serializers.ModelSerializer):
         cart_items = obj.user.carts.all()
         return sum(item.total for item in cart_items)
 
+    def validate_user(self, value):
+        if value.role != "basic_user":
+            raise serializers.ValidationError(
+                "Only buyer users can be assigned as cart."
+            )
+        return value
+
 
 # ---------------- User Create Serializer for User details----------------
 class UserSerializer(serializers.ModelSerializer):
-    role = serializers.ChoiceField(choices=CustomUser.ROLE_CHOICES, required=True)
+    role = serializers.ChoiceField(
+        choices=[
+            (CustomUser.AUTHOR, "Author"),
+            (CustomUser.BASIC_USER, "Buyer"),
+        ],
+        required=True,
+    )
 
     class Meta:
         model = CustomUser
@@ -461,6 +527,11 @@ class UserSerializer(serializers.ModelSerializer):
             "last_login": {"read_only": True},
             "password": {"write_only": True, "required": True},
         }
+
+    def validate_user(self, value):
+        if value.role == "admin":
+            raise serializers.ValidationError("Admin users can't be register.")
+        return value
 
     def create(self, validated_data):
         password = validated_data.pop("password")

@@ -1,6 +1,5 @@
 from django.contrib.auth.base_user import BaseUserManager
-
-# from .models import CustomUser
+from django.core.exceptions import ValidationError
 
 
 class CustomUserManager(BaseUserManager):
@@ -9,47 +8,73 @@ class CustomUserManager(BaseUserManager):
         self, username, email, mobile, password=None, role=None, **extra_fields
     ):
         """
-        Create normal user with specified role.
-        Role must be one of CustomUser.ROLE_CHOICES
+        Create a normal user (Author or Basic User) only.
+        Admin creation from API is blocked.
         """
-        if not username:
-            raise ValueError(_("The Username must be set"))
-        if not email:
-            raise ValueError(_("The Email must be set"))
-        if not mobile:
-            raise ValueError(_("The Mobile number must be set"))
+        from .models import CustomUser
 
-        # role_choices = [choice[0] for choice in CustomUser.ROLE_CHOICES]
-        # if role not in role_choices:
-        #     raise ValueError(_(f"Role must be one of {role_choices}"))
+        if not username:
+            raise ValueError("The Username must be set")
+        if not email:
+            raise ValueError("The Email must be set")
+        if not mobile:
+            raise ValueError("The Mobile number must be set")
+
+        # Valid role check
+        role_choices = [choice[0] for choice in CustomUser.ROLE_CHOICES]
+        if role not in role_choices:
+            raise ValidationError(f"Role must be one of {role_choices}")
+
+        # BLOCK ADMIN CREATION FROM API
+        if role == CustomUser.ADMIN:
+            raise ValidationError(
+                "Admin cannot be created from API. Use createsuperuser only."
+            )
 
         email = self.normalize_email(email)
         user = self.model(
-            username=username, email=email, mobile=mobile, role=role, **extra_fields
+            username=username,
+            email=email,
+            mobile=mobile,
+            role=role,
+            **extra_fields,
         )
+
         if password:
             user.set_password(password)
+
         user.save(using=self._db)
         return user
 
     def create_superuser(self, username, email, mobile, password=None, **extra_fields):
         """
-        Superuser always has admin role
+        Superuser always has ADMIN role.
+        Admin creation ONLY here via command line.
+        Max 2 admins allowed.
         """
+        from .models import CustomUser
+
+        # Check existing admin count
+        admin_count = CustomUser.objects.filter(role=CustomUser.ADMIN).count()
+        if admin_count >= 2:
+            raise ValidationError("Maximum number of Admin users reached (2).")
+
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        # extra_fields.setdefault("role", CustomUser.ADMIN)
+        extra_fields.setdefault("role", CustomUser.ADMIN)
 
         if extra_fields.get("is_staff") is not True:
-            raise ValueError(_("Superuser must have is_staff=True."))
+            raise ValueError("Superuser must have is_staff=True.")
         if extra_fields.get("is_superuser") is not True:
-            raise ValueError(_("Superuser must have is_superuser=True."))
+            raise ValueError("Superuser must have is_superuser=True.")
+        if extra_fields.get("role") != CustomUser.ADMIN:
+            raise ValueError("Superuser role must always be ADMIN.")
 
         return self.create_user(
             username=username,
             email=email,
             mobile=mobile,
             password=password,
-            # role=CustomUser.ADMIN,
+            role=CustomUser.ADMIN,
             **extra_fields,
         )

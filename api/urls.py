@@ -8,7 +8,7 @@ from .views import (
     CartItemView,
     cartview,
     userview,
-    stats,
+
 )
 from rest_framework.routers import DefaultRouter
 from . import views

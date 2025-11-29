@@ -33,11 +33,24 @@ from .serializers import (
     CartSerializer,
     UserSerializer,
 )
+from .permissions import IsAuthorSelfOrReadOnly
+from rest_framework import permissions
 
 
 class booksview(viewsets.ModelViewSet):
     queryset = Books.objects.prefetch_related("author", "category").all()
     serializer_class = BooksCreateSerializer
+
+    # def get_permissions(self):
+    #     if self.action in ["create", "update", "partial_update", "destroy"]:
+    #         return [IsAuthorSelfOrReadOnly()]  # tumhare custom permissions
+    #     return [permissions.AllowAny()]
+
+    # def get_serializer_context(self):
+    #     context = super().get_serializer_context()
+    #     context["request"] = self.request
+    #     return context
+
     # authentication_classes = [SessionAuthentication]
     # permission_classes = [IsAdminUser]
 
