@@ -25,11 +25,13 @@ class CustomUserManager(BaseUserManager):
         if role not in role_choices:
             raise ValidationError(f"Role must be one of {role_choices}")
 
-        # BLOCK ADMIN CREATION FROM API
-        if role == CustomUser.ADMIN:
-            raise ValidationError(
-                "Admin cannot be created from API. Use createsuperuser only."
-            )
+        if role == "admin" and not extra_fields.get("is_superuser", False):
+            raise ValueError("Admin cannot be created from API or signup.")
+
+        if not email:
+            raise ValueError("Email is required")
+        if not username:
+            raise ValueError("Username is required")
 
         email = self.normalize_email(email)
         user = self.model(
@@ -56,7 +58,7 @@ class CustomUserManager(BaseUserManager):
 
         # Check existing admin count
         admin_count = CustomUser.objects.filter(role=CustomUser.ADMIN).count()
-        if admin_count >= 2:
+        if admin_count > 1:
             raise ValidationError("Maximum number of Admin users reached (2).")
 
         extra_fields.setdefault("is_staff", True)
@@ -70,11 +72,18 @@ class CustomUserManager(BaseUserManager):
         if extra_fields.get("role") != CustomUser.ADMIN:
             raise ValueError("Superuser role must always be ADMIN.")
 
+        if not email:
+            raise ValueError("Email is required")
+        if not username:
+            raise ValueError("Username is required")
+
+        email = self.normalize_email(email)
+
         return self.create_user(
             username=username,
             email=email,
             mobile=mobile,
             password=password,
-            role=CustomUser.ADMIN,
+            # role=CustomUser.ADMIN,
             **extra_fields,
         )

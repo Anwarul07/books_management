@@ -1,24 +1,21 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework import viewsets
+from rest_framework import viewsets, permissions
 from django.db.models import Q
+from rest_framework.generics import (
+    ListAPIView,
+    ListCreateAPIView,
+    RetrieveUpdateDestroyAPIView,
+)
 from django.contrib.auth.models import User
 from rest_framework.viewsets import ModelViewSet
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-from rest_framework.authentication import SessionAuthentication
-from rest_framework.permissions import (
-    AllowAny,
-    IsAdminUser,
-    IsAuthenticated,
-    IsAuthenticatedOrReadOnly,
-)
 
 User = get_user_model()
-# from .filters import BooksFilter, CategoryFilter
 
 from .models import Books, Author, Category, Cart, CartItem, CustomUser
 from rest_framework.reverse import reverse
@@ -33,92 +30,29 @@ from .serializers import (
     CartSerializer,
     UserSerializer,
 )
-from .permissions import IsAuthorSelfOrReadOnly
+
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework import permissions
+from .permissions import UserRolepermission, IsAdminOrAuthorOrReadOnly
 
 
 class booksview(viewsets.ModelViewSet):
-    queryset = Books.objects.prefetch_related("author", "category").all()
+    queryset = Books.objects.all()
     serializer_class = BooksCreateSerializer
-
-    # def get_permissions(self):
-    #     if self.action in ["create", "update", "partial_update", "destroy"]:
-    #         return [IsAuthorSelfOrReadOnly()]  # tumhare custom permissions
-    #     return [permissions.AllowAny()]
-
-    # def get_serializer_context(self):
-    #     context = super().get_serializer_context()
-    #     context["request"] = self.request
-    #     return context
-
-    # authentication_classes = [SessionAuthentication]
-    # permission_classes = [IsAdminUser]
-
-    # filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    # filterset_class = BooksFilter
-    # filterset_fields = [
-    #     "title",
-    #     "price",
-    #     "language",
-    #     "availability",
-    #     "binding_types",
-    #     "edition",
-    #     "ratings",
-    #     "isbn",
-    # ]
-    # search_fields = [
-    #     "=title",
-    #     "category__category_name",
-    #     "author__author_name",
-    #     "binding_types",
-    #     "language",
-    #     "price",
-    # ]
-    # ordering_fields = ["title", "price", "availability", "category__category_name"]
-
-    # def get_queryset(self):
-    #     queryset = Books.objects.select_related("author", "category").filter(
-    #         availability__iexact="pending"
-    #     )
-    #     search = self.request.query_params.get("search", None)
-    #     if search:
-    #         queryset = queryset.filter(
-    #             Q(title__icontains=search)
-    #             | Q(author__user__username__icontains=search)
-    #             | Q(author__user__first_name__icontains=search)
-    #             | Q(author__user__last_name__icontains=search)
-    #             | Q(category__category_name__icontains=search)
-    #             | Q(publications__icontains=search)
-    #             | Q(language__icontains=search)
-    #             | Q(availability__icontains=search)
-    #             | Q(binding_types__icontains=search)
-    #             | Q(edition__icontains=search)
-    #         )
-    #     # Filter on the basis on category
-    #     category = self.request.query_params.get("category", None)
-    #     if category:
-    #         queryset = queryset.filter(category__category_name__iexact=category)
-
-    #     # Filter on the base of Author
-    #     author = self.request.query_params.get("author", None)
-    #     if author:
-    #         queryset = queryset.filter(author__user__username__iexact=author)
-
-    #     return queryset
+    authentication_classes = [SessionAuthentication]
+    # permission_classes = [IsAdminOrAuthorOrReadOnly]
 
 
 class authorview(viewsets.ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
-    # def get_queryset(self):
-    #     author = self.request.author
-    #     return Author.objects.filter(author=author).order_by("-id")
 
 
 class categoryview(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategoryCreateSerializer
-    filter_backends = [DjangoFilterBackend]
+
+    # filter_backends = [DjangoFilterBackend]
     # filterset_class = CategoryFilter
 
 
@@ -126,23 +60,51 @@ class CartItemView(viewsets.ModelViewSet):
     queryset = CartItem.objects.all()
     serializer_class = CartItemSerializer
 
-    # def get_queryset(self):
-    #     # Only return logged-in user's cart items
-    #     return CartItem.objects.filter(user=self.request.user)
-
-    # def perform_create(self, serializer):
-    #     serializer.save(user=self.request.user)
-
-    # def perform_update(self, serializer):
-    #     serializer.save(user=self.request.user)
-
 
 class cartview(viewsets.ModelViewSet):
-    queryset = Cart.objects.all()
+    queryset=Cart.objects.all()
     serializer_class = CartSerializer
 
+    # def get_queryset(self):
+    #     users = self.request.user
 
-class userview(viewsets.ModelViewSet):
+    #     if not users.is_authenticated or users.role == "author":
+    #         return Cart.objects.none()
+    #     if users.role == "admin" or users.is_superuser:
+    #         return Cart.objects.all()
+    #     return CustomUser.objects.filter(id=users.id)
+
+
+class SigninView(viewsets.ModelViewSet):
+    queryset = CustomUser.objects.all()
+    serializer_class = UserSerializer
+    # authentication_classes = [SessionAuthentication]
+    # permission_classes = [UserRolepermission]
+
+    # def get_queryset(self):
+    #     user = self.request.user
+
+    #     if not user.is_authenticated:
+    #         return CustomUser.objects.none()
+
+    #     # Admin sab dekh sakta hai
+    #     if user.role == "admin" or user.is_superuser:
+    #         return CustomUser.objects.all()
+
+    #     # Author/Basic User sirf apna data query kar payenge
+    #     # (Ye double security hai permission class ke saath)
+    #     return CustomUser.objects.filter(id=user.id)
+    # http_method_names = ["get", "retrive", "update" "delete"]  # for specific
+
+
+# from .permissions import RegisterPermission
+
+from rest_framework.generics import CreateAPIView
+from .permissions import RegisterPermission
+
+
+class RegisterView(CreateAPIView):
+    http_method_names = ["post"]  # for specific
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
 
@@ -217,6 +179,26 @@ def stats(request):
     return Response(stats)
 
 
+# author
+# def get_queryset(self):
+#     author = self.request.author
+#     return Author.objects.filter(author=author).order_by("-id")
+
+# cart
+
+# def get_queryset(self):
+#     # Only return logged-in user's cart items
+#     return CartItem.objects.filter(user=self.request.user)
+
+# def perform_create(self, serializer):
+#     serializer.save(user=self.request.user)
+
+# def perform_update(self, serializer):
+#     serializer.save(user=self.request.user)
+
+
+# idk ----
+
 # from rest_framework import viewsets
 # from .models import CustomUser
 # from rest_framework.permissions import IsAuthenticated
@@ -238,3 +220,33 @@ def stats(request):
 #             # Non-admin users sirf apni profile dekh sakte hain
 #             return CustomUser.objects.filter(pk=user.pk)
 #         return CustomUser.objects.all()
+
+
+# def get_queryset(self):
+#     user = self.request.user
+
+#     if user.is_authenticated and user.role == CustomUser.ADMIN:
+#         return CustomUser.objects.all()
+#     return CustomUser.objects.filter(id=user.id)
+
+# def get_queryset(self):
+#     user = self.request.user.username
+#     return CustomUser.objects.filter(user=user)
+
+
+#     def get_queryset(self):
+#         # Logged-in user ka sirf apna record return karega
+#         return CustomUser.objects.filter(id=self.request.user.id)
+
+#     def perform_update(self, serializer):
+#         # User sirf apna data update kar sakta hai
+#         serializer.save(id=self.request.user.id)
+
+#     def perform_destroy(self, instance):
+#         # User sirf apna record delete kar sakta hai
+#         if instance.id != self.request.user.id:
+#             raise PermissionDenied("You don't have permission to delete this user.")
+#         instance.delete()
+
+
+#

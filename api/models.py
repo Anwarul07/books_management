@@ -35,9 +35,9 @@ class CustomUser(AbstractUser):
     # --- Custom Manager ---
     objects = CustomUserManager()
 
-    # --- Authentication ---
-    USERNAME_FIELD = "username"
-    REQUIRED_FIELDS = ["email", "mobile"]
+    # --- Authentication --
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["mobile", "username"]
 
     # --- String Representation ---
     def __str__(self):
@@ -61,6 +61,8 @@ class Category(models.Model):
     side_image = models.ImageField(upload_to="category/", blank=True, null=True)
     top_image = models.ImageField(upload_to="category/", blank=True, null=True)
     bottom_image = models.ImageField(upload_to="category/", blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     origin = models.CharField(max_length=10, choices=ORIGIN_CHOICES, default="india")
 
@@ -76,7 +78,6 @@ class Author(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        primary_key=True,
         related_name="author_profile",
     )
     biography = models.TextField(max_length=200)
@@ -86,12 +87,6 @@ class Author(models.Model):
 
     def __str__(self):
         return self.user.username
-
-
-from django.db import models
-from django.conf import settings
-from decimal import Decimal
-from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 # ---Book Model ---
@@ -134,7 +129,7 @@ class Books(models.Model):
     )
 
     category = models.ForeignKey(
-        "Category", on_delete=models.CASCADE, related_name="category_of_books"
+        "Category", on_delete=models.PROTECT, related_name="category_of_books"
     )
 
     # ------------ Images ------------
@@ -214,13 +209,10 @@ class Books(models.Model):
 
     class Meta:
         ordering = ["title"]
+        unique_together = ("author", "title")
 
 
 # ---Cartitem user Model ---
-from django.db import models
-from django.conf import settings
-from django.core.validators import MinValueValidator
-from decimal import Decimal
 
 
 class CartItem(models.Model):

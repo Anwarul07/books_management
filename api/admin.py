@@ -24,6 +24,9 @@ class CustomUserAdmin(BaseUserAdmin):
         "is_staff",
         "is_superuser",
         "is_active",
+        "date_joined",
+        "last_login",
+        "cover_image",
     )
     list_filter = ("role", "is_staff", "is_superuser", "is_active")
     search_fields = ("username", "email", "mobile")
@@ -101,6 +104,10 @@ class AuthorAdmin(admin.ModelAdmin):
         "get_email",
         "get_mobile",
         "is_verified",
+        "date_of_birth",
+        "is_verified",
+        "biography",
+        "short_description",
         "date_of_birth",
     ]
 

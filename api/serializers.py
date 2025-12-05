@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 from decimal import Decimal
 from .models import CustomUser
-from django.core.exceptions import ObjectDoesNotExist  # इसे ऊपर import करें
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import F
 
 # from django.contrib.auth import get_user_model
@@ -21,12 +21,10 @@ from .models import (
 class BooksReadSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     category_name = serializers.StringRelatedField(source="category")
-    sale_price = serializers.DecimalField(
-        max_digits=7, decimal_places=2, read_only=True
-    )
-    author = serializers.PrimaryKeyRelatedField(
-        queryset=Author.objects.filter(user__role=CustomUser.AUTHOR)
-    )
+    sale_price = serializers.ReadOnlyField()
+
+    # Author assignment restricted to users with role "author"
+    # author = serializers.PrimaryKeyRelatedField(queryset=Author.objects.all())
 
     class Meta:
         model = Books
@@ -66,16 +64,17 @@ class BooksReadSerializer(serializers.ModelSerializer):
         try:
             return obj.author.author_profile.author_name
         except ObjectDoesNotExist:
-            return f"User: {obj.author.user.username}"
+            return f"User: {obj.author.username}"
 
         except Exception:
             return obj.author.user.username
+
             # return obj.author.first_name + " " + obj.author.last_name
 
     def validate_author(self, value):
-        if value.user.role != "author":
+        if value.user.role != CustomUser.AUTHOR:
             raise serializers.ValidationError(
-                "Only Author users can be assigned as book author."
+                "The associated user must have the role 'author'."
             )
         return value
 
@@ -86,7 +85,7 @@ class BooksReadSerializer(serializers.ModelSerializer):
 
 # ---------------- Author Read Serializer for assign only Author detail in any seralizers ----------------
 class AuthorReadSerializer(serializers.ModelSerializer):
-    user_id = serializers.CharField(source="user.id", read_only=True)
+    user_id = serializers.CharField(source="id", read_only=True)
     role = serializers.CharField(source="user.role", read_only=True)
     author_name = serializers.SerializerMethodField()
     first_name = serializers.CharField(source="user.first_name", read_only=True)
@@ -129,11 +128,7 @@ class AuthorReadSerializer(serializers.ModelSerializer):
             "date_of_birth",
         ]
         read_only_fields = [
-            # "username",
             "is_verified",
-            #     "biography",
-            #     "short_description",
-            #     "date_of_birth",
         ]
 
     def get_author_name(self, obj):
@@ -162,6 +157,8 @@ class CategoryReadSerializer(serializers.ModelSerializer):
             "top_image",
             "bottom_image",
             "origin",
+            "created_at",
+            "updated_at",
         ]
 
 
@@ -173,10 +170,9 @@ class BooksCreateSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     category_name = serializers.StringRelatedField(source="category")
     sale_price = serializers.SerializerMethodField()
-    author = serializers.PrimaryKeyRelatedField(
-        queryset=Author.objects.filter(user__role=CustomUser.AUTHOR)
-    )
 
+    # Author assignment restricted to users with role "author"
+    # author = serializers.PrimaryKeyRelatedField(queryset=Author.objects.all())
     class Meta:
         model = Books
         fields = [
@@ -232,9 +228,9 @@ class BooksCreateSerializer(serializers.ModelSerializer):
         return round(total, 2)
 
     def validate_author(self, value):
-        if value.user.role != "author":
+        if value.user.role != CustomUser.AUTHOR:
             raise serializers.ValidationError(
-                "Only Author users can be assigned as book author."
+                "The associated user must have the role 'author'."
             )
         return value
 
@@ -347,6 +343,8 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
             "top_image",
             "bottom_image",
             "origin",
+            "created_at",
+            "updated_at",
             "category_of_books",
             "totalbook",
             "authors",
@@ -357,24 +355,30 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
             "totalbook",
             "authors",
             "totalauthors",
+            "created_at",
+            "updated_at",
         ]
 
     def get_totalbook(self, obj):
         return obj.category_of_books.count()
 
     def get_authors(self, obj):
-        data = (
-            obj.category_of_books.select_related("author", "author__user")
-            .annotate(
-                user_id=F("author__user__id"),
-                first_name=F("author__user__first_name"),
-                last_name=F("author__user__last_name"),
-                email=F("author__user__email"),
-            )
-            .values("user_id", "first_name", "last_name", "email")
+        data = authors_qs = (
+            Author.objects.filter(books_of_author__category=obj)
             .distinct()
+            .select_related("user")
         )
-        return list(data)
+        unique_authors = [
+            {
+                "user_id": author.user.id,
+                "first_name": author.user.first_name,
+                "last_name": author.user.last_name,
+                "email": author.user.email,
+            }
+            for author in data
+        ]
+
+        return unique_authors
 
     def get_totalauthors(self, obj):
         return obj.category_of_books.values_list("author", flat=True).distinct().count()
@@ -407,17 +411,17 @@ class CartItemSerializer(serializers.ModelSerializer):
             # "url",
             "id",
             "user",
-            "username",  # read only
-            "first_name",  # read only
-            "last_name",  # read only
+            "username",
+            "first_name",
+            "last_name",
             "books",  # FK ID (write only)
-            "book_title",  # read only
-            "book_price",  # read only
-            "book_discount",  # read only
-            "sale_price",  # read only
-            "quantity",  # editable
-            "total",  # read only
-            "added_at",  # read only
+            "book_title",
+            "book_price",
+            "book_discount",
+            "sale_price",
+            "quantity",
+            "total",
+            "added_at",
         ]
         read_only_fields = ["added_at"]
 
@@ -505,7 +509,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = [
             "id",
-            "url",
+            # "url",
             "role",
             "username",
             "first_name",

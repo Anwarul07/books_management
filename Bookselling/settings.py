@@ -145,3 +145,16 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",  # fallback
     "api.auth_backends.EmailOrMobileBackend",
 ]
+
+
+# REST_FRAMEWORK = {
+#     "DEFAULT_AUTHENTICATION_CLASSES": [
+#         "rest_framework.authentication.SessionAuthentication",
+#         # "rest_framework.authentication.TokenAuthentication",
+#         # Add other authentication classes as needed, e.g., 'rest_framework_simplejwt.authentication.JWTAuthentication',
+#     ],
+#     # "DEFAULT_PERMISSION_CLASSES": [
+#     #     "rest_framework.permissions.IsAuthenticated",
+#     #     # Add other global permission classes if desired
+#     # ],
+# }
