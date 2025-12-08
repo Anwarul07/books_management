@@ -3,11 +3,6 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import viewsets, permissions
 from django.db.models import Q
-from rest_framework.generics import (
-    ListAPIView,
-    ListCreateAPIView,
-    RetrieveUpdateDestroyAPIView,
-)
 from django.contrib.auth.models import User
 from rest_framework.viewsets import ModelViewSet
 from django.shortcuts import get_object_or_404
@@ -32,88 +27,114 @@ from .serializers import (
 )
 
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
-from rest_framework import permissions
-from .permissions import UserRolepermission, IsAdminOrAuthorOrReadOnly
+from rest_framework.permissions import IsAdminUser, IsAuthenticatedOrReadOnly
+from .permissions import (
+    IsAdminOrAuthorOrReadOnly,
+    IsAdminOrAuthorSpecificOrReadOnly,
+    IsAdminOrReadOnly,
+    IsAdminOrBuyerOnly,
+    IsAdminOrAuthorOrBuyerOnly,
+)
 
 
 class booksview(viewsets.ModelViewSet):
+    """BookView Only Admin and Author can Crud Thier Books"""
+
+    # Need Hooks like perform create and Update etc user attach
+
     queryset = Books.objects.all()
     serializer_class = BooksCreateSerializer
     authentication_classes = [SessionAuthentication]
-    # permission_classes = [IsAdminOrAuthorOrReadOnly]
+    permission_classes = [IsAdminOrAuthorOrReadOnly]
+    from rest_framework.response import Response
+
+    def dispatch(self, request, *args, **kwargs):
+        from django.utils import timezone
+
+        user = self.request.user
+        print(
+            {
+                "path": request.path,
+                "method": request.method,
+                "user": str(user),
+                "ip": request.META.get("REMOTE_ADDR"),
+                "timestamp": timezone.now().isoformat(),
+            }
+        )
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        return Response({"msg": "GET Called"})
+
+    # def get_object(self):
+    #     obj = super().get_object()  # default object fetch
+    #     if not self.request.user.is_staff and obj.owner != self.request.user:
+    #         raise PermissionDenied("You cannot access this book")
+    #     return obj
 
 
 class authorview(viewsets.ModelViewSet):
+    """AuthorView Only Admin and Author can Crud Thier Own profile"""
+
+    # Need Hooks like perform update
+
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAdminOrAuthorSpecificOrReadOnly]
 
 
 class categoryview(viewsets.ModelViewSet):
+    """CategoryView Only Admin and  can Crud Category"""
+
     queryset = Category.objects.all()
     serializer_class = CategoryCreateSerializer
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAdminOrReadOnly]
 
     # filter_backends = [DjangoFilterBackend]
     # filterset_class = CategoryFilter
 
 
 class CartItemView(viewsets.ModelViewSet):
+    """CartItmeView Only Admin and Buyer can Crud Thier Own CartItem"""
+
+    # Need perform Hooks and permission issuu to see all users at has permission need queeryset also  cart
     queryset = CartItem.objects.all()
     serializer_class = CartItemSerializer
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAdminOrBuyerOnly]
 
 
 class cartview(viewsets.ModelViewSet):
-    queryset=Cart.objects.all()
+    """CartView Only Admin and Buyer can Crud Thier Own Cart"""
+
+    # Need perform Hooks and permission issuu to see all users at has permission need queeryset also  cart
+
+    queryset = Cart.objects.all()
     serializer_class = CartSerializer
-
-    # def get_queryset(self):
-    #     users = self.request.user
-
-    #     if not users.is_authenticated or users.role == "author":
-    #         return Cart.objects.none()
-    #     if users.role == "admin" or users.is_superuser:
-    #         return Cart.objects.all()
-    #     return CustomUser.objects.filter(id=users.id)
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAdminOrBuyerOnly]
 
 
-class SigninView(viewsets.ModelViewSet):
+class userview(viewsets.ModelViewSet):
+    """UserView Only Admin and User can Crud Thier Own CartItem"""
+
+    # Need perform Hooks and permission issuu to see all users at has permission need queeryset also  user and only post sytem need
+
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
-    # authentication_classes = [SessionAuthentication]
-    # permission_classes = [UserRolepermission]
-
-    # def get_queryset(self):
-    #     user = self.request.user
-
-    #     if not user.is_authenticated:
-    #         return CustomUser.objects.none()
-
-    #     # Admin sab dekh sakta hai
-    #     if user.role == "admin" or user.is_superuser:
-    #         return CustomUser.objects.all()
-
-    #     # Author/Basic User sirf apna data query kar payenge
-    #     # (Ye double security hai permission class ke saath)
-    #     return CustomUser.objects.filter(id=user.id)
-    # http_method_names = ["get", "retrive", "update" "delete"]  # for specific
-
-
-# from .permissions import RegisterPermission
-
-from rest_framework.generics import CreateAPIView
-from .permissions import RegisterPermission
-
-
-class RegisterView(CreateAPIView):
-    http_method_names = ["post"]  # for specific
-    queryset = CustomUser.objects.all()
-    serializer_class = UserSerializer
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAdminOrAuthorOrBuyerOnly]
 
 
 @api_view(["GET"])
 def home(request):
 
     info = {
-        "root": "api/",
+        "rootendpint": "home/api/",
+        "status": "home/status/",
         "Books": {
             "books": "api/books/",
             # "books": reverse("books", request=request, format=format),
@@ -126,24 +147,25 @@ def home(request):
             "books": "api/books/",
             "books-details": "api/books/id",
             "total_books": Books.objects.all().count(),
-            "author-filter": "api/books/?author=<author_name>",
+            "author-filter": "api/books/?author=<author>",
             "category-filter": "api/books/?category=<category_name>",
         },
         "Author": {
             "total_authors": Author.objects.all().count(),
             "author": "api/author/",
             "author-details": "api/author/id",
-            "author-filter": "api/author/?author=<author_name>",
+            "author-filter": "api/author/?author=<author>",
             "category-filter": "api/author/?category=<category_name>",
         },
         "Category": {
             "category": "api/category/",
             "total_category": Category.objects.all().count(),
             "category-details": "api/category/id",
-            "author-filter": "api/category/?author=<author_name>",
+            "author-filter": "api/category/?author=<author",
             "category-filter": "api/category/?category=<category_name>",
         },
-        "Stats": {"status": "api/staus/"},
+        "Stats": {"status": "home/staus/"},
+        "Apiendpoint": {"status": "home/api/"},
     }
     return Response(info)
 
@@ -169,7 +191,7 @@ def stats(request):
 
     # books by author
     for author in Author.objects.all():
-        stats["books_by_author"][author.author_name] = author.books_of_author.count()
+        stats["books_by_author"][author.user.username] = author.books_of_author.count()
     # books by availability
     for choice in Books.AVAILABILITY_CHOICES:
         status_key = choice[0]
@@ -179,16 +201,21 @@ def stats(request):
     return Response(stats)
 
 
-# author
-# def get_queryset(self):
-#     author = self.request.author
-#     return Author.objects.filter(author=author).order_by("-id")
+#  faltu hai abhi k liye :
 
-# cart
 
 # def get_queryset(self):
-#     # Only return logged-in user's cart items
-#     return CartItem.objects.filter(user=self.request.user)
+#     user = self.request.user
+
+#     if not user.is_authenticated:
+#         return CustomUser.objects.none()
+
+#     if user.role == "admin" or user.is_superuser:
+#         return CustomUser.objects.all()
+#
+#     return CustomUser.objects.filter(id=user.id)
+# http_method_names = ["get", "retrive", "update" "delete"]  # for specific
+
 
 # def perform_create(self, serializer):
 #     serializer.save(user=self.request.user)
@@ -197,52 +224,11 @@ def stats(request):
 #     serializer.save(user=self.request.user)
 
 
-# idk ----
-
-# from rest_framework import viewsets
-# from .models import CustomUser
-# from rest_framework.permissions import IsAuthenticated
-# from .serializers import UserSerializer
-# from .permissions import IsAdminOrSelf  # Nayi permission class import karein
-
-
-# class UserViewSet(viewsets.ModelViewSet):  # UserViewSet naming convention better hai
-#     queryset = CustomUser.objects.all()  # CustomUser import karna zaruri hai
-#     serializer_class = UserSerializer
-
-#     # Permission yahan set karein
-#     permission_classes = [IsAdminOrSelf]
-
-#     # Optional: Agar koi user sirf apni profile dekhna chahe to
-#     def get_queryset(self):
-#         user = self.request.user
-#         if user.is_authenticated and user.role != CustomUser.ADMIN:
-#             # Non-admin users sirf apni profile dekh sakte hain
-#             return CustomUser.objects.filter(pk=user.pk)
-#         return CustomUser.objects.all()
-
-
-# def get_queryset(self):
-#     user = self.request.user
-
-#     if user.is_authenticated and user.role == CustomUser.ADMIN:
-#         return CustomUser.objects.all()
-#     return CustomUser.objects.filter(id=user.id)
-
-# def get_queryset(self):
-#     user = self.request.user.username
-#     return CustomUser.objects.filter(user=user)
-
-
-#     def get_queryset(self):
-#         # Logged-in user ka sirf apna record return karega
-#         return CustomUser.objects.filter(id=self.request.user.id)
-
-#     def perform_update(self, serializer):
+# def perform_update(self, serializer):
 #         # User sirf apna data update kar sakta hai
 #         serializer.save(id=self.request.user.id)
 
-#     def perform_destroy(self, instance):
+# def perform_destroy(self, instance):
 #         # User sirf apna record delete kar sakta hai
 #         if instance.id != self.request.user.id:
 #             raise PermissionDenied("You don't have permission to delete this user.")
@@ -250,3 +236,61 @@ def stats(request):
 
 
 #
+
+
+"""
+# List all Types method and Hooks
+
+| Operation | Method / Hook                | Purpose                                      |
+| --------- | ---------------------------- | -------------------------------------------- |
+| List      | `list()`                     | GET request handle, response prepare        |
+| Create    | `create()`                   | POST request handle, response prepare        |
+| Create    | `perform_create(serializer)` | Actual DB save, attach extra fields          |
+| Retrieve  | `retrieve()`                 | GET single object handle, response prepare   |
+| Retrieve  | `get_object()`               | Fetch object + object-level permission check |
+| Update    | `update()`                   | PUT/PATCH request handle, response prepare   |
+| Update    | `perform_update(serializer)` | Actual DB update + extra fields              |
+| Delete    | `destroy()`                  | DELETE request handle, response prepare      |
+| Delete    | `perform_destroy(instance)`  | Actual DB delete + logging                   |
+
+| Hook                        | Purpose                                      |
+| --------------------------- | -------------------------------------------- |
+| `get_serializer_class()`    | Dynamic serializer selection based on action |
+| `get_serializer()`          | Serializer instance create                   |
+| `get_serializer_context()`  | Extra context pass to serializer             |
+| `get_queryset()`            | Base queryset define                         |
+| `filter_queryset(queryset)` | Queryset filter/search/order apply           |
+
+| Hook                                     | Purpose                                 |
+| ---------------------------------------- | --------------------------------------- |
+| `initial(request, *args, **kwargs)`      | Pre-processing, auth & permission check |
+| `get_permissions()`                      | Dynamic permission classes              |
+| `get_authenticators()`                   | Dynamic authentication classes          |
+| `check_object_permissions(request, obj)` | Object-level permission check           |
+| `get_throttles()`                        | Throttling setup                        |
+| `perform_authentication(request)`        | Explicit authentication run             |
+| `check_throttles(request)`               | Explicit throttle check                 |
+
+| Hook                                                    | Purpose                              |
+| ------------------------------------------------------- | ------------------------------------ |
+| `finalize_response(request, response, *args, **kwargs)` | Modify response before sending       |
+| `handle_exception(exc)`                                 | Exception handling + custom response |
+
+| Hook                           | Purpose                        |
+| ------------------------------ | ------------------------------ |
+| `paginate_queryset(queryset)`  | Apply pagination               |
+| `get_paginated_response(data)` | Return paginated response      |
+| `get_filter_backends()`        | Decide dynamic filter backends |
+| `get_view_name()`              | Dynamic view name (for schema) |
+| `get_view_description()`       | View description (for schema)  |
+| `get_schema(request=None)`     | OpenAPI / Schema generation    |
+| `get_renderer_context()`       | Extra rendering context        |
+
+
+| Hook                                           | Purpose                             |
+| ---------------------------------------------- | ----------------------------------- |
+| `dispatch(request, *args, **kwargs)`           | Start of request lifecycle          |
+| `initialize_request(request, *args, **kwargs)` | Convert HTTP request to DRF Request |
+| `options(request, *args, **kwargs)`            | Handle HTTP OPTIONS request         |
+
+"""

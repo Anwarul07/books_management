@@ -78,10 +78,6 @@ class BooksReadSerializer(serializers.ModelSerializer):
             )
         return value
 
-    # def get_author_name(self, val):
-    #     if val:
-    #         return val.author.author_name
-
 
 # ---------------- Author Read Serializer for assign only Author detail in any seralizers ----------------
 class AuthorReadSerializer(serializers.ModelSerializer):
@@ -170,6 +166,7 @@ class BooksCreateSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     category_name = serializers.StringRelatedField(source="category")
     sale_price = serializers.SerializerMethodField()
+    viewed_by = serializers.SerializerMethodField()
 
     # Author assignment restricted to users with role "author"
     # author = serializers.PrimaryKeyRelatedField(queryset=Author.objects.all())
@@ -203,6 +200,7 @@ class BooksCreateSerializer(serializers.ModelSerializer):
             "description",
             "summary",
             "publication_date",
+            "viewed_by",
             "created_at",
             "updated_at",
             "author_details",
@@ -214,9 +212,10 @@ class BooksCreateSerializer(serializers.ModelSerializer):
             "category_name",
             "category_details",
             "sale_price",
-            "availability",
+            # "availability",
             "created_at",
             "updated_at",
+            "viewed_by",
         ]
 
     def get_author_name(self, obj):
@@ -233,6 +232,18 @@ class BooksCreateSerializer(serializers.ModelSerializer):
                 "The associated user must have the role 'author'."
             )
         return value
+
+    def get_viewed_by(self, obj):
+        user = self.context["request"].user
+        return user.username
+
+    def get_fields(self):
+        fields = super().get_fields()
+        user = self.context["request"].user
+
+        if not user.is_superuser:
+            fields.pop("availability")  # hide sensitive field
+        return fields
 
 
 # ---------------- Author Create Serializer for Author details----------------
@@ -538,14 +549,18 @@ class UserSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
+        print(validated_data)
         password = validated_data.pop("password")
         role = validated_data.pop("role")
-
+        print("Password raw", password)
+        print("Role raw", role)
         user = CustomUser.objects.create_user(
             password=password,
             role=role,
             **validated_data,
         )
+        print("Password", password)
+        print("Role", role)
 
         if role == CustomUser.ADMIN:
             user.is_staff = True
@@ -557,6 +572,42 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
     # def create(self, validated_data):
-    #     print(validated_data)
     #     user = User.objects.create_user(**validated_data)
     #     return user
+
+
+"""
+
+# Most used (important):
+
+| Hook / Method              | Purpose                                             |
+| -------------------------- | --------------------------------------------------- |
+| `to_internal_value()`      | Convert raw input → Python data (validation step)   |
+| `validate_empty_values()`  | Detect empty/missing values before validation       |
+| `run_validation()`         | Full validation pipeline wrapper                    |
+| `validate_<field>()`       | Field-level custom validation                       |
+| `validate()`               | Object-level validation for multiple fields         |
+| `to_representation()`      | Convert Python object → JSON output                 |
+| `create()`                 | Create DB instance                                  |
+| `update()`                 | Update DB instance                                  |
+| `save()`                   | Wrapper that calls create/update                    |
+| `is_valid()`               | Trigger validation and collect errors               |
+| `get_fields()`             | Dynamically modify fields at runtime                |
+| `get_validators()`         | Dynamically modify validators                       |
+| `get_initial()`            | Initial form data (rare but exists)                 |
+| `SerializerMethodField()`  | Dynamic serializer field with custom value          |
+| `get_<field>()`            | Method that returns value for SerializerMethodField |
+| `build_standard_field()`   | Auto-build basic fields                             |
+| `build_relational_field()` | Auto-build relational fields                        |
+| `build_nested_field()`     | Auto-build nested serializers                       |
+| `build_property_field()`   | Build field from model property                     |
+| `build_url_field()`        | Build HyperlinkedIdentityField                      |
+| `build_unknown_field()`    | Handle fields not recognized                        |
+| `get_attribute()`          | Fetch attribute from object safely                  |
+| `build_field()`            | Master field builder calling above builders         |
+| `run_validators()`         | Run all validators                                  |
+| `get_value(dict)`          | Extract field value from request                    |
+| `update_or_create()`       | Custom saving logic for nested input                |
+
+
+"""

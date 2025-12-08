@@ -259,3 +259,51 @@ class Cart(models.Model):
 
     def __str__(self):
         return self.user.username
+
+
+"""
+
+| No.    | Hook / Method                             | Purpose / Use Case (Short Description)                 |
+| ------ | ----------------------------------------- | ------------------------------------------------------ |
+| **1**  | `__init__()`                              | Model object load/create hote hi initialize karna      |
+| **2**  | `save()`                                  | Record create/update se pehle custom logic chalana     |
+| **3**  | `delete()`                                | Record delete se pehle custom logic chalana            |
+| **4**  | `clean()`                                 | Custom model-level validation                          |
+| **5**  | `clean_fields()`                          | Field-by-field validation                              |
+| **6**  | `validate_unique()`                       | Unique constraint manually validate karna              |
+| **7**  | `full_clean()`                            | clean_fields + clean + validate_unique full validation |
+| **8**  | `from_db()`                               | DB se object load hone par hook trigger hota hai       |
+| **9**  | `get_absolute_url()`                      | Object ka canonical URL return karna                   |
+| **10** | `__str__()`                               | Model ka readable string representation                |
+| **11** | `get_FOO_display()`                       | Choice field ka human-readable text return             |
+| **12** | `get_next_by_<datefield>()`               | Date field ke basis par next record lana               |
+| **13** | `get_previous_by_<datefield>()`           | Date field ke basis par previous record                |
+| **14** | `prepare_database_save()`                 | Database save ke time low-level override hook          |
+| **15** | `serializable_value(field)`               | Serialization ke time field value customize            |
+| **16** | `Meta` class                              | Ordering, db_table, constraints, indexes define        |
+| **17** | `Manager.get_queryset()`                  | Custom queryset logic control                          |
+| **18** | `Custom Manager Methods`                  | Model-level business logic (e.g., `published()`)       |
+| **19** | `pre_save` (signal)                       | Save se bilkul pehle trigger hota hai                  |
+| **20** | `post_save` (signal)                      | Save hone ke turant baad trigger hota hai              |
+| **21** | `pre_delete` (signal)                     | Delete se pehle trigger hota hai                       |
+| **22** | `post_delete` (signal)                    | Delete ke baad trigger hota hai                        |
+| **23** | `post_init` (signal)                      | Model object initialize hote hii trigger hota hai      |
+| **24** | `m2m_changed` (signal)                    | ManyToMany relation change hote hi trigger             |
+| **25** | `post_migrate` (signal)                   | Migration complete hone ke baad trigger                |
+| **26** | `bulk_create()`                           | Multiple objects ek hi query me create karna           |
+| **27** | `refresh_from_db()`                       | Database se latest data reload karna                   |
+| **28** | `save_base()`                             | save() ka low-level core version                       |
+| **29** | `check()`                                 | Model validation (errors return karta hai)             |
+| **30** | `validate_constraints()`                  | Constraints (Unique, CheckConstraint) validate         |
+| **31** | `natural_key()`                           | Natural key export karne ka hook                       |
+| **32** | `unique_error_message()`                  | Unique constraint fail hone par custom message         |
+| **33** | `create()`                                | Object create karta hai, save() auto                   |
+| **34** | `get_or_create()`                         | Agar object hai → return, nahi → create                |
+| **35** | `update_or_create()`                      | Update ya create logic                                 |
+| **36** | `all()` / `filter()` / `exclude()`        | Queryset filter hooks                                  |
+| **37** | `annotate()`                              | Calculated field add (e.g., sales count)               |
+| **38** | `aggregate()`                             | Full queryset summary (e.g., total revenue)            |
+| **39** | `select_related()` / `prefetch_related()` | ForeignKey/M2M fast fetch, optimize queries            |
+
+
+"""

@@ -159,6 +159,9 @@ class CategoryAdmin(admin.ModelAdmin):
     search_fields = ["category_name", "description"]
     ordering = ["category_name"]
 
+    list_display_links = ["category_name"]
+    list_editable = ["origin"]
+
     # Form me fields ka order
     fields = [
         "category_name",
@@ -188,6 +191,7 @@ class BooksAdmin(admin.ModelAdmin):
         "availability",
         "language",
     ]
+    list_display_links = ["title"]
 
     list_filter = [
         "author",
@@ -317,6 +321,7 @@ class CartStandaloneAdmin(admin.ModelAdmin):
     search_fields = ["user__username", "user__email", "user__mobile"]
     list_filter = ["user"]
     ordering = ["user__username"]
+    list_display_links = ["user"]
 
     @admin.display(description="Email")
     def user_email(self, obj):
@@ -332,3 +337,39 @@ class CartStandaloneAdmin(admin.ModelAdmin):
 
             kwargs["queryset"] = CustomUser.objects.filter(role="basic_user")
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+"""
+| No.    | Hook / Method                                           | Purpose / Use Case (Short Description)            |
+| ------ | ------------------------------------------------------- | ------------------------------------------------- |
+| **1**  | `get_queryset(request)`                                 | Admin list view me objects filter/customize karna |
+| **2**  | `save_model(request, obj, form, change)`                | Object save hone par custom logic run karna       |
+| **3**  | `delete_model(request, obj)`                            | Object delete hone par custom logic run karna     |
+| **4**  | `save_form(request, form, change)`                      | Form save hone se pehle processing                |
+| **5**  | `save_formset(request, form, formset, change)`          | Inline formset save logic                         |
+| **6**  | `get_form(request, obj=None, **kwargs)`                 | Form dynamically customize karna                  |
+| **7**  | `get_fieldsets(request, obj=None)`                      | Fieldsets dynamically define karna                |
+| **8**  | `get_readonly_fields(request, obj=None)`                | Read-only fields define karna                     |
+| **9**  | `get_list_display(request)`                             | Admin list me columns dynamically define karna    |
+| **10** | `get_list_filter(request)`                              | List filters dynamically define karna             |
+| **11** | `get_search_fields(request)`                            | Search fields dynamically define karna            |
+| **12** | `get_ordering(request)`                                 | Default ordering customize karna                  |
+| **13** | `has_add_permission(request)`                           | Add permission override karna                     |
+| **14** | `has_change_permission(request, obj=None)`              | Change permission override                        |
+| **15** | `has_delete_permission(request, obj=None)`              | Delete permission override                        |
+| **16** | `has_view_permission(request, obj=None)`                | View permission override                          |
+| **17** | `response_add(request, obj, post_url_continue=None)`    | Redirect after add                                |
+| **18** | `response_change(request, obj)`                         | Redirect after change                             |
+| **19** | `response_delete(request, obj_display, obj_id)`         | Redirect after delete                             |
+| **20** | `formfield_for_dbfield(db_field, request, **kwargs)`    | Form field customize karna for DB field           |
+| **21** | `formfield_for_foreignkey(db_field, request, **kwargs)` | FK field form widget customize                    |
+| **22** | `formfield_for_manytomany(db_field, request, **kwargs)` | M2M field form widget customize                   |
+| **23** | `get_actions(request)`                                  | Admin actions dynamically modify karna            |
+| **24** | `delete_queryset(request, queryset)`                    | Bulk delete logic customize                       |
+| **25** | `log_addition(request, object)`                         | Log admin addition                                |
+| **26** | `log_change(request, object, message)`                  | Log admin change                                  |
+| **27** | `log_deletion(request, object, object_repr)`            | Log admin deletion                                |
+| **28** | `get_preserved_filters(request)`                        | Preserve filters on redirect                      |
+
+
+"""

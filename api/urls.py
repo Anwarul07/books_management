@@ -7,8 +7,7 @@ from .views import (
     categoryview,
     CartItemView,
     cartview,
-    RegisterView,
-    SigninView,
+    userview,
 )
 from rest_framework.routers import DefaultRouter
 from . import views
@@ -24,25 +23,13 @@ router.register("author", views.authorview, basename="author")
 router.register("category", views.categoryview, basename="category")
 router.register("cartitem", views.CartItemView, basename="cartitem")
 router.register("cart", views.cartview, basename="cart")
-# router.register("signin", views.SigninView, basename="customuser")
+router.register("user", views.userview, basename="user")
 
 
 urlpatterns = [
-    path("signup/", views.RegisterView.as_view(), name="customuser-list"),
-    path(
-        "signin/",
-        views.SigninView.as_view({"get": "list"}),
-        name="customuser-detail",
-    ),
-    path(
-        "signin/<int:pk>/",
-        views.SigninView.as_view(
-            {"get": "retrieve", "delete": "destroy", "put": "update"}
-        ),
-        name="customuser-detail",
-    ),
     path("", include(router.urls)),
-    # path("", home, name="home"),
+    path("", home, name="home"),
+    path("status/", home, name="home"),
 ]
 
 
