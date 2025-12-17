@@ -23,7 +23,7 @@ class IsAdminOrAuthorOrReadOnly(BasePermission):
         if user.role == "admin" or user.is_superuser:
             return True
         if user.role == "author" and not user.is_superuser:
-            if obj.author.id == user.id:
+            if obj.author.user.id == user.id:
                 return True
             return request.method in SAFE_METHODS
         if user.role == "basic_user" and not user.is_superuser:
@@ -35,7 +35,7 @@ class IsAdminOrAuthorSpecificOrReadOnly(BasePermission):
     def has_permission(self, request, view):
         user = request.user
         if not user.is_authenticated or request.user.is_anonymous:
-            return True
+            return request.method in SAFE_METHODS
 
         if user.role == "basic_user" and not user.is_superuser:
             return request.method in SAFE_METHODS
@@ -112,20 +112,19 @@ class IsAdminOrBuyerOnly(BasePermission):
 
 
 class IsAdminOrAuthorOrBuyerOnly(BasePermission):
+
     def has_permission(self, request, view):
         user = request.user
+
         if not user.is_authenticated or request.user.is_anonymous:
-            return False
+            return request.method == "POST"
+
         if user.role == "admin" or user.is_superuser:
             return True
-        if user.role in ["basic_user"]:
-            if request.method in ["POST", "GET", "PUT", "DELETE", "PATCH"]:
-                return True
-            return False
-        if user.role in ["author"]:
-            if request.method in ["POST", "GET", "PUT", "DELETE", "PATCH"]:
-                return True
-            return False
+        if user.role in ["basic_user", "author"]:
+            if request.method in ["POST"]:
+                return False
+            return True
 
     def has_object_permission(self, request, view, obj):
         user = request.user
@@ -134,11 +133,7 @@ class IsAdminOrAuthorOrBuyerOnly(BasePermission):
 
         if user.role == "admin" or user.is_superuser:
             return True
-        if user.role in ["basic_user"] and not user.is_superuser:
-            if obj.id == user.id:
-                return True
-            return False
-        if user.role in ["author"] and not user.is_superuser:
+        if user.role in ["basic_user", "author"] and not user.is_superuser:
             if obj.id == user.id:
                 return True
             return False

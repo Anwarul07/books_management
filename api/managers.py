@@ -46,6 +46,7 @@ class CustomUserManager(BaseUserManager):
             user.set_password(password)
 
         user.save(using=self._db)
+        print(f"User {username} created for  {role_choices}")
         return user
 
     def create_superuser(self, username, email, mobile, password=None, **extra_fields):
@@ -79,6 +80,7 @@ class CustomUserManager(BaseUserManager):
 
         email = self.normalize_email(email)
 
+        print(f"User {username} created for  Admin Role")
         return self.create_user(
             username=username,
             email=email,

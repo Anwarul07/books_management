@@ -123,9 +123,6 @@ class AuthorReadSerializer(serializers.ModelSerializer):
             "short_description",
             "date_of_birth",
         ]
-        read_only_fields = [
-            "is_verified",
-        ]
 
     def get_author_name(self, obj):
         return obj.user.first_name + " " + obj.user.last_name
@@ -143,6 +140,7 @@ class CategoryReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = [
+            # "url",  # No need
             "id",
             "category_name",
             "description",
@@ -166,7 +164,7 @@ class BooksCreateSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     category_name = serializers.StringRelatedField(source="category")
     sale_price = serializers.SerializerMethodField()
-    viewed_by = serializers.SerializerMethodField()
+    # viewed_by = serializers.SerializerMethodField()
 
     # Author assignment restricted to users with role "author"
     # author = serializers.PrimaryKeyRelatedField(queryset=Author.objects.all())
@@ -200,7 +198,7 @@ class BooksCreateSerializer(serializers.ModelSerializer):
             "description",
             "summary",
             "publication_date",
-            "viewed_by",
+            # "viewed_by",
             "created_at",
             "updated_at",
             "author_details",
@@ -215,7 +213,7 @@ class BooksCreateSerializer(serializers.ModelSerializer):
             # "availability",
             "created_at",
             "updated_at",
-            "viewed_by",
+            # "viewed_by",
         ]
 
     def get_author_name(self, obj):
@@ -227,23 +225,65 @@ class BooksCreateSerializer(serializers.ModelSerializer):
         return round(total, 2)
 
     def validate_author(self, value):
+        request = self.context.get("request")
+        user = request.user
+
         if value.user.role != CustomUser.AUTHOR:
             raise serializers.ValidationError(
                 "The associated user must have the role 'author'."
             )
+
+        if user.role == "author" and value != user.author_profile:
+            raise serializers.ValidationError(
+                "Authors cannot change or assign the author field. Only admin can do this."
+            )
         return value
 
-    def get_viewed_by(self, obj):
-        user = self.context["request"].user
-        return user.username
+    def validate_availability(self, value):
+        request = self.context.get("request")
+        user = request.user
 
-    def get_fields(self):
-        fields = super().get_fields()
-        user = self.context["request"].user
+        if not hasattr(user, "author_profile"):
+            return value
 
-        if not user.is_superuser:
-            fields.pop("availability")  # hide sensitive field
-        return fields
+        instance = getattr(self, "instance", None)
+        if instance is None:
+            if "availability" not in request.data:
+                raise serializers.ValidationError(
+                    "Authors cannot modify availability. Admin approval required."
+                )
+            return "pending"
+
+        old_value = instance.availability
+        if value != old_value:
+            raise serializers.ValidationError(
+                "Authors cannot modify availability. Admin approval required."
+            )
+
+        return value
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        user = request.user
+
+        # Author but not verified → block
+        if user.role == "author" and not user.author_profile.is_verified:
+            raise serializers.ValidationError(
+                "Only verified authors can create or update books."
+            )
+
+        return attrs
+
+    # def get_viewed_by(self, obj):
+    #     user = self.context["request"].user
+    #     return user.username
+
+    # def get_fields(self):
+    #     fields = super().get_fields()
+    #     user = self.context["request"].user
+    #     if not user.is_superuser:
+    #         fields.pop("availability")  # hide sensitive field
+    #     return fields
 
 
 # ---------------- Author Create Serializer for Author details----------------
@@ -265,7 +305,9 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
     bottom_image = serializers.ImageField(source="user.bottom_image", read_only=True)
 
     # Books reverse relation -> from Books model: author = FK(CustomUser)
-    books_of_author = BooksReadSerializer(many=True, read_only=True)
+    books_of_author = BooksReadSerializer(
+        source="user.books", many=True, read_only=True
+    )
 
     # Aggregates
     totalbooks = serializers.SerializerMethodField()
@@ -307,7 +349,6 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
             "username",
             "email",
             "mobile",
-            "is_verified",
             "books_of_author",
             "totalbooks",
             "category_of_books",
@@ -315,11 +356,70 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate_user(self, value):
+        request = self.context.get("request")
+        user = request.user
+
+        if not user.is_authenticated:
+            raise serializers.ValidationError("Authentication required.")
         if value.role != "author":
             raise serializers.ValidationError(
-                "Only Author users can be assigned as book author."
+                "Only  Author users can be assigned as book author."
             )
         return value
+
+    def validate_is_verified(self, value):
+        request = self.context.get("request")
+        if request is None:
+            # Running in Django Admin -> skip all validation
+            return value
+
+        user = request.user
+        instance = getattr(self, "instance", None)
+
+        # ---------------- CREATE ----------------
+        if instance is None:
+            # If author is creating: they CANNOT set this field manually
+            if user.role == "author":
+                # If author tries to send is_verified in request -> block
+                if "is_verified" in request.data:
+                    raise serializers.ValidationError(
+                        "Authors cannot update verification status. Admin approval required."
+                    )
+                # If field not present → allow it → default will apply
+                return False
+
+            # Admin creating -> allow whatever value
+            return value
+
+        # ---------------- UPDATE ----------------
+        old_value = instance.is_verified
+        if value != old_value and user.role != "admin":
+            raise serializers.ValidationError(
+                "Authors cannot update verification status. Admin approval required."
+            )
+
+        return value
+
+    # Dynamically change user field (admin vs buyer)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        request = self.context.get("request")
+        if not request:
+            return
+
+        user = request.user
+
+        if not user.is_authenticated:
+            self.fields["user"].read_only = True
+            return
+        if not user.is_superuser and user.role != "admin":
+            self.fields["user"].read_only = True
+            self.fields["user"].default = serializers.CurrentUserDefault()
+
+        else:
+            self.fields["user"].queryset = CustomUser.objects.filter(role="author")
 
     # ------------------------ AGGREGATION ------------------------
 
@@ -345,6 +445,8 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = [
+            "url",
+            "id",
             "category_name",
             "description",
             "cover_image",
@@ -419,7 +521,7 @@ class CartItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
         fields = [
-            # "url",
+            # "url", no need same as category
             "id",
             "user",
             "username",
@@ -453,8 +555,20 @@ class CartItemSerializer(serializers.ModelSerializer):
 
     # ---------- Restrict update (user/books cannot change) ----------
     def update(self, instance, validated_data):
-        validated_data.pop("user", None)
-        validated_data.pop("books", None)
+        request = self.context.get("request")
+
+        # Buyers cannot change user or books
+        if request.user.role == "basic_user":
+            validated_data.pop("user", None)
+
+        # Authors cannot change user or books (not allowed anyway)
+        if request.user.role == "author":
+            validated_data.pop("user", None)
+
+        # Admin can change user, but cannot change books
+        if request.user.role in ["admin"] or request.user.is_superuser:
+            return super().update(instance, validated_data)
+
         return super().update(instance, validated_data)
 
 
@@ -476,7 +590,7 @@ class CartSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cart
         fields = [
-            # "url",
+            "url",
             "id",
             "user",
             "username",
@@ -520,7 +634,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = [
             "id",
-            # "url",
+            # "url", no need same as category url issue
             "role",
             "username",
             "first_name",
@@ -543,9 +657,17 @@ class UserSerializer(serializers.ModelSerializer):
             "password": {"write_only": True, "required": True},
         }
 
-    def validate_user(self, value):
-        if value.role == "admin":
-            raise serializers.ValidationError("Admin users can't be register.")
+    def validate_role(self, value):
+        request = self.context.get("request")
+
+        if request and request.method in ["POST"]:
+            if value == CustomUser.ADMIN:
+                raise serializers.ValidationError("Admin users cannot be registered.")
+            return value
+        if request and request.method in ["PUT", "PATCH"]:
+            if not request.user.is_superuser and request.user.role != CustomUser.ADMIN:
+                raise serializers.ValidationError("You cannot change your role.")
+
         return value
 
     def create(self, validated_data):
@@ -570,6 +692,28 @@ class UserSerializer(serializers.ModelSerializer):
 
         user.save()
         return user
+
+    def update(self, instance, validated_data):
+        # 🔐 Password update
+        password = validated_data.pop("password", None)
+        if password:
+            instance.set_password(password)
+
+        # 🔒 Role update (admin-only)
+        role = validated_data.pop("role", None)
+        request = self.context.get("request")
+
+        if role and request and request.user.is_superuser:
+            instance.role = role
+            if role == CustomUser.AUTHOR:
+                instance.is_staff = True
+
+        # Normal field updates
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance
 
     # def create(self, validated_data):
     #     user = User.objects.create_user(**validated_data)

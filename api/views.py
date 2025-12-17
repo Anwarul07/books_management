@@ -9,17 +9,14 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
+from django.core.exceptions import PermissionDenied
 
 User = get_user_model()
-
 from .models import Books, Author, Category, Cart, CartItem, CustomUser
 from rest_framework.reverse import reverse
 from .serializers import (
-    BooksReadSerializer,
     BooksCreateSerializer,
-    AuthorReadSerializer,
     AuthorCreateSerializer,
-    CategoryReadSerializer,
     CategoryCreateSerializer,
     CartItemSerializer,
     CartSerializer,
@@ -27,65 +24,125 @@ from .serializers import (
 )
 
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
-from rest_framework.permissions import IsAdminUser, IsAuthenticatedOrReadOnly
 from .permissions import (
     IsAdminOrAuthorOrReadOnly,
     IsAdminOrAuthorSpecificOrReadOnly,
     IsAdminOrReadOnly,
     IsAdminOrBuyerOnly,
-    IsAdminOrAuthorOrBuyerOnly,
 )
 
 
-class booksview(viewsets.ModelViewSet):
+class BooksView(viewsets.ModelViewSet):
     """BookView Only Admin and Author can Crud Thier Books"""
-
-    # Need Hooks like perform create and Update etc user attach
 
     queryset = Books.objects.all()
     serializer_class = BooksCreateSerializer
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrAuthorOrReadOnly]
-    from rest_framework.response import Response
 
-    def dispatch(self, request, *args, **kwargs):
-        from django.utils import timezone
-
+    def perform_create(self, serializer):
         user = self.request.user
-        print(
-            {
-                "path": request.path,
-                "method": request.method,
-                "user": str(user),
-                "ip": request.META.get("REMOTE_ADDR"),
-                "timestamp": timezone.now().isoformat(),
-            }
-        )
+        if user.role == "author":
+            if not user.author_profile.is_verified:
+                raise PermissionDenied(
+                    "You are not verified. Verified authors only can create books."
+                )
+            serializer.save(author=user.author_profile, availability="pending")
+        else:
+            serializer.save()
 
-        return super().dispatch(request, *args, **kwargs)
+    def perform_update(self, serializer):
+        user = self.request.user
+        book = self.get_object()
+        if user.role == "author":
+            if not user.author_profile.is_verified:
+                raise PermissionDenied(
+                    "You are not verified. Verified authors only can update books."
+                )
+            serializer.save(
+                author=user.author_profile,
+                availability=book.availability,
+            )
+        else:
+            serializer.save()
 
-    def get(self, request):
-        return Response({"msg": "GET Called"})
-
-    # def get_object(self):
-    #     obj = super().get_object()  # default object fetch
-    #     if not self.request.user.is_staff and obj.owner != self.request.user:
+    # def get_object(self
+    #     obj = super().get_object()
+    #     print(obj)
+    #     if obj.author != self.request.user:
     #         raise PermissionDenied("You cannot access this book")
     #     return obj
 
 
-class authorview(viewsets.ModelViewSet):
+class AuthorView(viewsets.ModelViewSet):
     """AuthorView Only Admin and Author can Crud Thier Own profile"""
 
-    # Need Hooks like perform update
+    #  check user removal option in book also and books of author is unablibalbe
 
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrAuthorSpecificOrReadOnly]
 
+    def perform_create(self, serializer):
+        users = self.request.user
 
-class categoryview(viewsets.ModelViewSet):
+        if users.role == "author":
+            serializer.save(is_verified=False, user=users)
+        else:
+            serializer.save()
+
+    def perform_update(self, serializer):
+        users = self.request.user
+        author_db = self.get_object()
+
+        if users.role == "author":
+            serializer.save(is_verified=author_db.is_verified, user=users)
+            print(users, author_db)
+        else:
+            serializer.save()
+
+
+class AuthorSelfView(viewsets.ModelViewSet):
+    serializer_class = AuthorCreateSerializer
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAdminOrAuthorSpecificOrReadOnly]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if not user.is_authenticated:
+            return Author.objects.none()
+
+        if user.is_superuser or user.role == "admin":
+            return Author.objects.all()
+
+        if user.role == "author":
+            return Author.objects.filter(user=user)
+
+        return Author.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        if user.role == "author":
+            serializer.save(user=user, is_verified=False)
+        else:
+
+            serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        author_obj = self.get_object()
+
+        if user.role == "author":
+            serializer.save(user=author_obj.user, is_verified=author_obj.is_verified)
+        else:
+
+            serializer.save()
+
+
+class CategoryView(viewsets.ModelViewSet):
     """CategoryView Only Admin and  can Crud Category"""
 
     queryset = Category.objects.all()
@@ -100,33 +157,130 @@ class categoryview(viewsets.ModelViewSet):
 class CartItemView(viewsets.ModelViewSet):
     """CartItmeView Only Admin and Buyer can Crud Thier Own CartItem"""
 
-    # Need perform Hooks and permission issuu to see all users at has permission need queeryset also  cart
-    queryset = CartItem.objects.all()
     serializer_class = CartItemSerializer
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrBuyerOnly]
 
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or user.role == "admin":
+            return CartItem.objects.all()
+        return CartItem.objects.filter(user=user)
 
-class cartview(viewsets.ModelViewSet):
+    def perform_create(self, serializer):
+        user = self.request.user
+        if not user.is_superuser and user.role == "author":
+            raise PermissionDenied("only buyer have permission to perform cartitem")
+
+        if not user.is_superuser and user.role == "basic_user":
+            serializer.save(user=user)
+            return
+
+        if user.is_superuser and user.role == "admin":
+            serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        instance = self.get_object()
+
+        if user.role == "author" and not user.is_superuser:
+            raise PermissionDenied("Authors cannot update cart items.")
+
+        if user.role == "basic_user" and not user.is_superuser:
+            if instance.user != user:
+                raise PermissionDenied("You cannot update another user's cart.")
+            serializer.save(user=user)
+            return
+
+        serializer.save()
+
+
+class CartView(viewsets.ModelViewSet):
     """CartView Only Admin and Buyer can Crud Thier Own Cart"""
 
-    # Need perform Hooks and permission issuu to see all users at has permission need queeryset also  cart
-
-    queryset = Cart.objects.all()
     serializer_class = CartSerializer
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrBuyerOnly]
 
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or user.role == "admin":
+            return Cart.objects.all()
+        return Cart.objects.filter(user=user)
 
-class userview(viewsets.ModelViewSet):
+    def perform_create(self, serializer):
+        user = self.request.user
+        if not user.is_superuser and user.role == "author":
+            raise PermissionDenied("only buyer have permission to perform cartitem")
+
+        if not user.is_superuser and user.role == "basic_user":
+            if hasattr(user, "cart"):
+                raise PermissionDenied("You already have a cart.")
+            serializer.save(user=user)
+            return
+
+        if user.is_superuser and user.role == "admin":
+            serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        instance = self.get_object()
+
+        if user.role == "author" and not user.is_superuser:
+            raise PermissionDenied("Authors cannot update cart items.")
+
+        if user.role == "basic_user" and not user.is_superuser:
+            if instance.user != user:
+                raise PermissionDenied("You cannot update another user's cart.")
+            serializer.save(user=user)
+            return
+
+        serializer.save()
+
+
+class UserView(viewsets.ModelViewSet):
     """UserView Only Admin and User can Crud Thier Own CartItem"""
-
-    # Need perform Hooks and permission issuu to see all users at has permission need queeryset also  user and only post sytem need
 
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAdminOrAuthorOrBuyerOnly]
+    # permission_classes = [IsAdminOrAuthorOrBuyerOnly]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        # ❌ Non-admin cannot create users
+        if not user.is_authenticated or (
+            not user.is_superuser and user.role != CustomUser.ADMIN
+        ):
+            raise PermissionDenied("Only admin can create users.")
+
+        serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        instance = self.get_object()
+
+        # ❌ Non-admin can update ONLY self
+        if not user.is_superuser and user.role != CustomUser.ADMIN:
+            serializer.save(role=instance.role)  # 🔒 role locked
+        else:
+            # Admin full control
+            serializer.save()
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if self.request.method == "POST":
+            return CustomUser.objects.none()
+
+        if not user.is_authenticated:
+            return CustomUser.objects.none()
+
+        if user.is_superuser or user.role == CustomUser.ADMIN:
+            return CustomUser.objects.all()
+
+        return CustomUser.objects.filter(id=user.id)
 
 
 @api_view(["GET"])
@@ -235,8 +389,26 @@ def stats(request):
 #         instance.delete()
 
 
-#
+# def dispatch(self, request, *args, **kwargs):
+#    from django.utils import timezone
 
+
+# user = self.request.user
+#        print(
+#            {
+#                "path": request.path,
+#                "method": request.method,
+#                "user": str(user),
+#                "ip": request.META.get("REMOTE_ADDR"),
+#                "timestamp": timezone.now().isoformat(),
+#            }
+#        )
+#
+#        return super().dispatch(request, *args, **kwargs)
+#
+#    def get(self, request):
+#        return Response({"msg": "GET Called"})
+#
 
 """
 # List all Types method and Hooks

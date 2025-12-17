@@ -18,6 +18,7 @@ class EmailOrMobileBackend(ModelBackend):
         Authenticate user using email or mobile and password.
         """
         if not username or not password:
+            print("username or mobile is not mathced ")
             return None
 
         # Normalize input
@@ -28,11 +29,14 @@ class EmailOrMobileBackend(ModelBackend):
             user = User.objects.get(
                 Q(email__iexact=username_input) | Q(mobile=mobile_input)
             )
+            print("user login sucess")
         except User.DoesNotExist:
+            print("not a user ")
             return None
 
         # Only active users
         if user.check_password(password) and user.is_active:
+            print("user loged in ")
             return user
 
         return None
