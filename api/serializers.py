@@ -210,7 +210,6 @@ class BooksCreateSerializer(serializers.ModelSerializer):
             "category_name",
             "category_details",
             "sale_price",
-            # "availability",
             "created_at",
             "updated_at",
             # "viewed_by",
@@ -370,7 +369,6 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
     def validate_is_verified(self, value):
         request = self.context.get("request")
         if request is None:
-            # Running in Django Admin -> skip all validation
             return value
 
         user = request.user
@@ -378,17 +376,12 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
 
         # ---------------- CREATE ----------------
         if instance is None:
-            # If author is creating: they CANNOT set this field manually
             if user.role == "author":
-                # If author tries to send is_verified in request -> block
                 if "is_verified" in request.data:
                     raise serializers.ValidationError(
                         "Authors cannot update verification status. Admin approval required."
                     )
-                # If field not present → allow it → default will apply
                 return False
-
-            # Admin creating -> allow whatever value
             return value
 
         # ---------------- UPDATE ----------------
@@ -634,7 +627,6 @@ class UserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = [
             "id",
-            # "url", no need same as category url issue
             "role",
             "username",
             "first_name",
@@ -652,63 +644,66 @@ class UserSerializer(serializers.ModelSerializer):
             "last_login",
         ]
         extra_kwargs = {
+            "password": {"write_only": True, "required": True},
             "date_joined": {"read_only": True},
             "last_login": {"read_only": True},
-            "password": {"write_only": True, "required": True},
         }
 
     def validate_role(self, value):
         request = self.context.get("request")
 
-        if request and request.method in ["POST"]:
+        # Always allow serializer to work without request
+        if not request:
+            return value
+
+        # REGISTER
+        if request.method == "POST":
             if value == CustomUser.ADMIN:
                 raise serializers.ValidationError("Admin users cannot be registered.")
             return value
-        if request and request.method in ["PUT", "PATCH"]:
-            if not request.user.is_superuser and request.user.role != CustomUser.ADMIN:
-                raise serializers.ValidationError("You cannot change your role.")
+
+        # UPDATE
+        if request.method in ["PUT", "PATCH"]:
+            user = request.user
+
+            if not user.is_authenticated:
+                raise serializers.ValidationError("Authentication required.")
+
+            if not user.is_superuser:
+                raise serializers.ValidationError("Role change is not allowed.")
 
         return value
 
     def create(self, validated_data):
-        print(validated_data)
         password = validated_data.pop("password")
         role = validated_data.pop("role")
-        print("Password raw", password)
-        print("Role raw", role)
+
         user = CustomUser.objects.create_user(
             password=password,
             role=role,
             **validated_data,
         )
-        print("Password", password)
-        print("Role", role)
 
-        if role == CustomUser.ADMIN:
-            user.is_staff = True
-            user.is_superuser = True
-        elif role == CustomUser.AUTHOR:
+        # Role-based flags
+        if role == CustomUser.AUTHOR:
             user.is_staff = True
 
         user.save()
         return user
 
     def update(self, instance, validated_data):
-        # 🔐 Password update
+        request = self.context.get("request")
+
         password = validated_data.pop("password", None)
         if password:
             instance.set_password(password)
 
-        # 🔒 Role update (admin-only)
         role = validated_data.pop("role", None)
-        request = self.context.get("request")
 
         if role and request and request.user.is_superuser:
             instance.role = role
-            if role == CustomUser.AUTHOR:
-                instance.is_staff = True
+            instance.is_staff = role == CustomUser.AUTHOR
 
-        # Normal field updates
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 

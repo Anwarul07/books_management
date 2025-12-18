@@ -29,6 +29,7 @@ from .permissions import (
     IsAdminOrAuthorSpecificOrReadOnly,
     IsAdminOrReadOnly,
     IsAdminOrBuyerOnly,
+    IsAdminOrAuthorOnly,
 )
 
 
@@ -77,8 +78,6 @@ class BooksView(viewsets.ModelViewSet):
 class AuthorView(viewsets.ModelViewSet):
     """AuthorView Only Admin and Author can Crud Thier Own profile"""
 
-    #  check user removal option in book also and books of author is unablibalbe
-
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
     authentication_classes = [SessionAuthentication]
@@ -104,9 +103,10 @@ class AuthorView(viewsets.ModelViewSet):
 
 
 class AuthorSelfView(viewsets.ModelViewSet):
+    queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAdminOrAuthorSpecificOrReadOnly]
+    permission_classes = [IsAdminOrAuthorOnly]
 
     def get_queryset(self):
         user = self.request.user
@@ -250,10 +250,10 @@ class UserView(viewsets.ModelViewSet):
         user = self.request.user
 
         # ❌ Non-admin cannot create users
-        if not user.is_authenticated or (
-            not user.is_superuser and user.role != CustomUser.ADMIN
-        ):
-            raise PermissionDenied("Only admin can create users.")
+        if user.is_authenticated and not user.is_superuser:
+            raise PermissionDenied(
+                "You are already logged in. You cannot register another user."
+            )
 
         serializer.save()
 
@@ -261,11 +261,13 @@ class UserView(viewsets.ModelViewSet):
         user = self.request.user
         instance = self.get_object()
 
-        # ❌ Non-admin can update ONLY self
+        # Non-admin users can update ONLY themselves
         if not user.is_superuser and user.role != CustomUser.ADMIN:
-            serializer.save(role=instance.role)  # 🔒 role locked
+            if instance.id != user.id:
+                raise PermissionDenied("You can update only your own profile.")
+
+            serializer.save(role=instance.role)  # role locked
         else:
-            # Admin full control
             serializer.save()
 
     def get_queryset(self):

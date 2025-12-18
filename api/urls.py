@@ -21,7 +21,7 @@ router = DefaultRouter()
 
 router.register("books", views.BooksView, basename="books")
 router.register("author", views.AuthorView, basename="author")
-router.register("author/me", views.AuthorSelfView, basename="authoronly")
+router.register("authors/me", views.AuthorSelfView, basename="authoronly")
 router.register("category", views.CategoryView, basename="category")
 router.register("cartitem", views.CartItemView, basename="cartitem")
 router.register("cart", views.CartView, basename="cart")

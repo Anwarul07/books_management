@@ -111,6 +111,35 @@ class IsAdminOrBuyerOnly(BasePermission):
             return False
 
 
+class IsAdminOrAuthorOnly(BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        if not user.is_authenticated or request.user.is_anonymous:
+            return False
+        if user.role == "admin" or user.is_superuser:
+            return True
+        if user.role == "author":
+            if request.method in ["POST", "GET", "PUT", "DELETE", "PATCH"]:
+                return True
+            return False
+        if user.role == "basic_user" and not user.is_superuser:
+            return False
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        if not user.is_authenticated or request.user.is_anonymous:
+            return False
+
+        if user.role == "admin" or user.is_superuser:
+            return True
+        if user.role == "author" and not user.is_superuser:
+            if obj.user.id == user.id:
+                return True
+            return False
+        if user.role == "basic_user" and not user.is_superuser:
+            return False
+
+
 class IsAdminOrAuthorOrBuyerOnly(BasePermission):
 
     def has_permission(self, request, view):
