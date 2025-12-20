@@ -51,6 +51,8 @@ class BooksReadSerializer(serializers.ModelSerializer):
         return value
 
 
+
+
 # ---------------- Author Read Serializer for assign only Author detail in any seralizers ----------------
 class AuthorReadSerializer(serializers.ModelSerializer):
     user_id = serializers.CharField(source="id", read_only=True)
@@ -86,11 +88,17 @@ class AuthorReadSerializer(serializers.ModelSerializer):
         return value
 
 
+
+
 # ---------------- Category Read Serializer for assign only Category detail in any seralizers ----------------
 class CategoryReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = "__all__"
+
+
+
+
 
 
 # ---------------- Book Create Serializer for Book details----------------
@@ -187,6 +195,9 @@ class BooksCreateSerializer(serializers.ModelSerializer):
     #     if not user.is_superuser:
     #         fields.pop("availability")  # hide sensitive field
     #     return fields
+
+
+
 
 
 # ---------------- Author Create Serializer for Author details----------------
@@ -307,6 +318,9 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
         return CategoryReadSerializer(categories, many=True).data
 
 
+
+
+
 # ---------------- Book Categoty Serializer for Category details----------------
 class CategoryCreateSerializer(serializers.ModelSerializer):
     category_of_books = BooksReadSerializer(many=True, read_only=True)
@@ -317,25 +331,8 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = [
-            "url",
-            "id",
-            "category_name",
-            "description",
-            "cover_image",
-            "front_image",
-            "behind_image",
-            "side_image",
-            "top_image",
-            "bottom_image",
-            "origin",
-            "created_at",
-            "updated_at",
-            "category_of_books",
-            "totalbook",
-            "authors",
-            "totalauthors",
-        ]
+        fields = "__all__"
+
         read_only_fields = [
             "category_of_books",
             "totalbook",
@@ -370,6 +367,10 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
         return obj.category_of_books.values_list("author", flat=True).distinct().count()
 
 
+
+
+
+
 # ---------------- CartItem Create Serializer for CartItem details----------------
 class CartItemSerializer(serializers.ModelSerializer):
 
@@ -393,23 +394,8 @@ class CartItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CartItem
-        fields = [
-            # "url", no need same as category
-            "id",
-            "user",
-            "username",
-            "first_name",
-            "last_name",
-            "books",  # FK ID (write only)
-            "book_title",
-            "book_price",
-            "book_discount",
-            "sale_price",
-            "quantity",
-            "total",
-            "added_at",
-        ]
-        read_only_fields = ["added_at"]
+        fields = "__all__"
+        read_only_fields = ("added_at", "updated_at")
 
     # ---------- Sale Price (discount applied) ----------
     def get_sale_price(self, obj):
@@ -445,6 +431,10 @@ class CartItemSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
+
+
+
+
 # ---------------- Cart Create Serializer for Cart details----------------
 class CartSerializer(serializers.ModelSerializer):
     # user_id = serializers.IntegerField(source="user.id", read_only=True)
@@ -462,18 +452,7 @@ class CartSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Cart
-        fields = [
-            "url",
-            "id",
-            "user",
-            "username",
-            "first_name",
-            "last_name",
-            "email",
-            "mobile",
-            "items",
-            "total_amount",
-        ]
+        fields = "__all__"
 
     def get_items(self, obj):
         from .serializers import CartItemSerializer
@@ -493,6 +472,11 @@ class CartSerializer(serializers.ModelSerializer):
         return value
 
 
+
+
+
+
+
 # ---------------- User Create Serializer for User details----------------
 class UserSerializer(serializers.ModelSerializer):
     role = serializers.ChoiceField(
@@ -505,28 +489,13 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = [
-            "id",
-            "role",
-            "username",
-            "first_name",
-            "last_name",
-            "email",
-            "mobile",
-            "password",
-            "cover_image",
-            "front_image",
-            "behind_image",
-            "side_image",
-            "top_image",
-            "bottom_image",
-            "date_joined",
-            "last_login",
-        ]
+        fields = "__all__"
         extra_kwargs = {
             "password": {"write_only": True, "required": True},
             "date_joined": {"read_only": True},
             "last_login": {"read_only": True},
+            "is_staff": {"read_only": True},
+            "is_superuser": {"read_only": True},
         }
 
     def validate_role(self, value):
