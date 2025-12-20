@@ -28,35 +28,7 @@ class BooksReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Books
-        fields = [
-            "url",
-            "id",
-            "title",
-            "author",
-            "author_name",
-            "category",
-            "category_name",
-            "cover_image",
-            "front_image",
-            "behind_image",
-            "side_image",
-            "top_image",
-            "bottom_image",
-            "total_pages",
-            "isbn",
-            "ratings",
-            "price",
-            "discount",
-            "sale_price",
-            "publications",
-            "availability",
-            "language",
-            "binding_types",
-            "edition",
-            "description",
-            "summary",
-            "publication_date",
-        ]
+        fields = "__all__"
 
     def get_author_name(self, obj):
 
@@ -101,28 +73,7 @@ class AuthorReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Author
-        fields = [
-            # "id",
-            "url",
-            "user_id",
-            "role",
-            "user",
-            "author_name",
-            "first_name",
-            "last_name",
-            "email",
-            "mobile",
-            "cover_image",
-            "front_image",
-            "behind_image",
-            "side_image",
-            "top_image",
-            "bottom_image",
-            "is_verified",
-            "biography",
-            "short_description",
-            "date_of_birth",
-        ]
+        fields = "__all__"
 
     def get_author_name(self, obj):
         return obj.user.first_name + " " + obj.user.last_name
@@ -139,21 +90,7 @@ class AuthorReadSerializer(serializers.ModelSerializer):
 class CategoryReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = [
-            # "url",  # No need
-            "id",
-            "category_name",
-            "description",
-            "cover_image",
-            "front_image",
-            "behind_image",
-            "side_image",
-            "top_image",
-            "bottom_image",
-            "origin",
-            "created_at",
-            "updated_at",
-        ]
+        fields = "__all__"
 
 
 # ---------------- Book Create Serializer for Book details----------------
@@ -170,40 +107,7 @@ class BooksCreateSerializer(serializers.ModelSerializer):
     # author = serializers.PrimaryKeyRelatedField(queryset=Author.objects.all())
     class Meta:
         model = Books
-        fields = [
-            "url",
-            "id",
-            "title",
-            "author",
-            "author_name",
-            "category",
-            "category_name",
-            "cover_image",
-            "front_image",
-            "behind_image",
-            "side_image",
-            "top_image",
-            "bottom_image",
-            "total_pages",
-            "isbn",
-            "ratings",
-            "price",
-            "discount",
-            "sale_price",
-            "publications",
-            "availability",
-            "language",
-            "binding_types",
-            "edition",
-            "description",
-            "summary",
-            "publication_date",
-            # "viewed_by",
-            "created_at",
-            "updated_at",
-            "author_details",
-            "category_details",
-        ]
+        fields = "__all__"
         read_only_fields = [
             "author_name",
             "author_details",
@@ -318,31 +222,7 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Author
-        fields = [
-            "url",
-            "user_id",
-            "role",
-            "user",
-            "username",
-            "first_name",
-            "last_name",
-            "email",
-            "mobile",
-            "cover_image",
-            "front_image",
-            "behind_image",
-            "side_image",
-            "top_image",
-            "bottom_image",
-            "biography",
-            "date_of_birth",
-            "short_description",
-            "is_verified",
-            "books_of_author",
-            "totalbooks",
-            "category_of_books",
-            "totalcategory",
-        ]
+        fields = "__all__"
 
         read_only_fields = [
             "username",

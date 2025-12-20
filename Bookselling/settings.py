@@ -158,3 +158,15 @@ AUTHENTICATION_BACKENDS = [
 #     #     # Add other global permission classes if desired
 #     # ],
 # }
+
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = "officialmdanwarulhaque@gmail.com"
+EMAIL_HOST_PASSWORD = "idmz apdf itzh noxr"
+
+DEFAULT_FROM_EMAIL = "My DRF App <yourmail@gmail.com>"
