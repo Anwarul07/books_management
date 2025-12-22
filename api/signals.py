@@ -4,10 +4,11 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
 from .models import CustomUser
+from decouple import config
 
-ADMIN_EMAIL = "officialmdanwarulhaque@gmail.com"
-ADMIN_PHONE = "8791233565"
-SITE_NAME = "Bookselling"
+ADMIN_EMAIL = config("ADMIN_EMAIL")
+ADMIN_PHONE = config("ADMIN_PHONE")
+SITE_NAME = config("SITE_NAME")
 
 import threading
 
