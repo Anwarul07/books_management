@@ -1,12 +1,16 @@
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from decimal import Decimal
 from .models import CustomUser
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import F
+from .otp import *
 
-# from django.contrib.auth import get_user_model
-# User = get_user_model()
+
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 from .models import (
     Books,
@@ -14,6 +18,7 @@ from .models import (
     Category,
     CartItem,
     Cart,
+    OTP,
 )
 
 
@@ -537,6 +542,129 @@ class UserSerializer(serializers.ModelSerializer):
     # def create(self, validated_data):
     #     user = User.objects.create_user(**validated_data)
     #     return user
+
+
+# ---------------- OTP Serializer for OTP details----------------
+
+
+class SendOTPSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField(required=False, allow_blank=True)
+    email = serializers.EmailField(required=False)
+    mobile = serializers.CharField(max_length=10, required=False)
+    password = serializers.CharField(write_only=True)
+    role = serializers.ChoiceField(choices=[User.AUTHOR, User.BASIC_USER])
+    channel = serializers.ChoiceField(choices=["email", "sms"])
+
+    def validate(self, data):
+        # ---- channel based required field ----
+        if data["channel"] == "email" and not data.get("email"):
+            raise serializers.ValidationError("Email required for email OTP")
+
+        if data["channel"] == "sms" and not data.get("mobile"):
+            raise serializers.ValidationError("Mobile required for SMS OTP")
+
+        # ---- admin registration block ----
+        if data["role"] == User.ADMIN:
+            raise serializers.ValidationError("Admin registration not allowed")
+
+        # ---- unique checks ----
+        if data.get("email") and User.objects.filter(email=data["email"]).exists():
+            raise serializers.ValidationError("Email already registered")
+
+        if data.get("mobile") and User.objects.filter(mobile=data["mobile"]).exists():
+            raise serializers.ValidationError("Mobile already registered")
+
+        return data
+
+    def create(self, validated_data):
+        email = validated_data.get("email")
+        mobile = validated_data.get("mobile")
+
+        # ---- cleanup old OTPs ----
+        OTP.objects.filter(email=email, mobile=mobile, is_verified=False).delete()
+
+        otp_code = generate_otp()
+
+        otp = OTP(
+            email=email,
+            mobile=mobile,
+            channel=validated_data["channel"],
+            otp=otp_code,
+            expires_at=get_expiry_time(),
+        )
+
+        otp.full_clean()  # triggers model clean()
+        otp.save()
+
+        # ---- send OTP ----
+        if otp.channel == "email":
+            send_email_otp(email, otp_code)
+        else:
+            send_sms_otp(mobile, otp_code)
+
+        return otp
+
+
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False)
+    mobile = serializers.CharField(required=False)
+    otp = serializers.CharField(max_length=6)
+
+    def validate(self, data):
+        # ---- identifier required ----
+        if not data.get("email") and not data.get("mobile"):
+            raise serializers.ValidationError(
+                "Email or mobile is required for OTP verification"
+            )
+
+        filters = {
+            "otp": data["otp"],
+            "is_verified": False,
+        }
+
+        if data.get("email"):
+            filters["email"] = data["email"]
+
+        if data.get("mobile"):
+            filters["mobile"] = data["mobile"]
+
+        otp_qs = OTP.objects.filter(**filters)
+
+        if not otp_qs.exists():
+            raise serializers.ValidationError("Invalid OTP")
+
+        otp_obj = otp_qs.first()
+
+        if otp_obj.is_expired():
+            raise serializers.ValidationError("OTP expired")
+
+        self.otp_obj = otp_obj
+        return data
+
+    def create(self, validated_data):
+        user_data = self.context.get("user_data")
+        if not user_data:
+            raise serializers.ValidationError("Registration session expired")
+
+        otp = self.otp_obj
+
+        if otp.is_verified:
+            raise serializers.ValidationError("OTP already used")
+
+        otp.is_verified = True
+        otp.save(update_fields=["is_verified"])
+
+        return User.objects.create_user(
+            username=user_data["username"],
+            email=user_data.get("email"),
+            mobile=user_data.get("mobile"),
+            password=user_data["password"],
+            first_name=user_data["first_name"],
+            last_name=user_data.get("last_name", ""),
+            role=user_data["role"],  # author / basic_user only
+        )
 
 
 """

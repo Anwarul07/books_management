@@ -1,3 +1,5 @@
+from django.utils import timezone
+from datetime import timedelta
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.models import User
@@ -5,6 +7,7 @@ from decimal import Decimal
 from django.contrib.auth.models import AbstractUser
 from .managers import CustomUserManager
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 
 # ---Custom user Model ---
@@ -42,6 +45,39 @@ class CustomUser(AbstractUser):
     # --- String Representation ---
     def __str__(self):
         return self.username
+
+
+# ---OTP Model ---
+
+
+class OTP(models.Model):
+    EMAIL = "email"
+    SMS = "sms"
+
+    CHANNEL_CHOICES = (
+        (EMAIL, "Email"),
+        (SMS, "SMS"),
+    )
+
+    email = models.EmailField(blank=True, null=True)
+    mobile = models.CharField(max_length=10, blank=True, null=True)
+
+    otp = models.CharField(max_length=6)
+    channel = models.CharField(max_length=10, choices=CHANNEL_CHOICES)
+
+    is_verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"OTP for {self.email or self.mobile}"
+
+    def clean(self):
+        if not self.email and not self.mobile:
+            raise ValidationError("Either email or mobile is required")
 
 
 # ---Category Model ---

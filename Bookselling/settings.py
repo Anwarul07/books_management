@@ -1,11 +1,14 @@
 from pathlib import Path
+from decouple import config
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-yce8eqsc(3fxk-%igw8)8h)_xf0-f-z1*!db9j7#=jc(cz09xn"
-DEBUG = True
-ALLOWED_HOSTS = ["*"]
+SECRET_KEY = config("SECRET_KEY")
+DEBUG = config("DEBUG", cast=bool, default=False)
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS", cast=lambda v: [s.strip() for s in v.split(",")]
+)
 
 
 INSTALLED_APPS = [
@@ -121,7 +124,7 @@ MEDIA_URL = "/media/"  # URL path for media files
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")  # Directory to store media files
 
 STORAGES = {
-    "default": {  # <--- THIS IS THE MISSING KEY
+    "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
@@ -168,7 +171,12 @@ EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
-EMAIL_HOST_USER = "officialmdanwarulhaque@gmail.com"
-EMAIL_HOST_PASSWORD = "idmzapdfitzhnoxr"
+EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
 
 DEFAULT_FROM_EMAIL = "BookSelling App <yourmail@gmail.com>"
+
+
+TWILIO_ACCOUNT_SID = config("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = config("TWILIO_AUTH_TOKEN")
+TWILIO_PHONE_NUMBER = config("TWILIO_PHONE_NUMBER")

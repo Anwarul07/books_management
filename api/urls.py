@@ -9,6 +9,8 @@ from .views import (
     CartItemView,
     CartView,
     UserView,
+    SendOTPView,
+    VerifyOTPView,
 )
 from rest_framework.routers import DefaultRouter
 from . import views
@@ -31,7 +33,9 @@ router.register("user/register", views.UserView, basename="user")
 urlpatterns = [
     path("", include(router.urls)),
     path("", home, name="home"),
-    path("status/", home, name="home"),
+    path("status/", home, name="status"),
+    path("register/send-otp/", SendOTPView.as_view()),
+    path("register/verify-otp/", VerifyOTPView.as_view()),
 ]
 
 

@@ -10,6 +10,13 @@ from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.core.exceptions import PermissionDenied
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
+from .otp import *
+from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
+
 
 User = get_user_model()
 from .models import Books, Author, Category, Cart, CartItem, CustomUser
@@ -21,6 +28,8 @@ from .serializers import (
     CartItemSerializer,
     CartSerializer,
     UserSerializer,
+    SendOTPSerializer,
+    VerifyOTPSerializer,
 )
 
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
@@ -301,6 +310,50 @@ class UserView(viewsets.ModelViewSet):
             return CustomUser.objects.all()
 
         return CustomUser.objects.filter(id=user.id)
+
+
+# OTP Views
+class SendOTPView(APIView):
+    # permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = SendOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        # Store user data temporarily
+        request.session["user_data"] = serializer.validated_data
+
+        return Response(
+            {"message": "OTP sent successfully"},
+            status=status.HTTP_200_OK,
+        )
+
+
+class VerifyOTPView(APIView):
+    # permission_classes = [AllowAny]
+
+    def post(self, request):
+        if not request.session.get("user_data"):
+            return Response(
+                {"detail": "Registration session expired"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = VerifyOTPSerializer(
+            data=request.data,
+            context={"user_data": request.session.get("user_data")},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        # 🔥 Clear session after successful registration
+        request.session.pop("user_data", None)
+
+        return Response(
+            {"message": "Registration successful"},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 @api_view(["GET"])
