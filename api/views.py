@@ -39,7 +39,7 @@ class BooksView(viewsets.ModelViewSet):
     queryset = Books.objects.all()
     serializer_class = BooksCreateSerializer
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAdminOrAuthorOrReadOnly]
+    # permission_classes = [IsAdminOrAuthorOrReadOnly]
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -81,7 +81,7 @@ class AuthorView(viewsets.ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAdminOrAuthorSpecificOrReadOnly]
+    # permission_classes = [IsAdminOrAuthorSpecificOrReadOnly]
 
     def perform_create(self, serializer):
         users = self.request.user
@@ -92,21 +92,27 @@ class AuthorView(viewsets.ModelViewSet):
             serializer.save()
 
     def perform_update(self, serializer):
-        users = self.request.user
-        author_db = self.get_object()
+        user = self.request.user
+        author = self.get_object()
 
-        if users.role == "author":
-            serializer.save(is_verified=author_db.is_verified, user=users)
-            print(users, author_db)
-        else:
-            serializer.save()
+        # AUTHOR cannot self-verify
+        if user.role == "author":
+            serializer.save(is_verified=author.is_verified)
+            return
+
+        # ADMIN can verify / reject
+        if user.is_superuser or user.role == "admin":
+            serializer.save()  # 🔥 Author.save() → signal fires
+            return
+
+        raise PermissionDenied("You are not allowed to update this profile.")
 
 
 class AuthorSelfView(viewsets.ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAdminOrAuthorOnly]
+    # permission_classes = [IsAdminOrAuthorOnly]
 
     def get_queryset(self):
         user = self.request.user
@@ -133,13 +139,19 @@ class AuthorSelfView(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         user = self.request.user
-        author_obj = self.get_object()
+        author = self.get_object()
 
+        # AUTHOR cannot self-verify
         if user.role == "author":
-            serializer.save(user=author_obj.user, is_verified=author_obj.is_verified)
-        else:
+            serializer.save(is_verified=author.is_verified)
+            return
 
-            serializer.save()
+        # ADMIN can verify / reject
+        if user.is_superuser or user.role == "admin":
+            serializer.save()  # 🔥 Author.save() → signal fires
+            return
+
+        raise PermissionDenied("You are not allowed to update this profile.")
 
 
 class CategoryView(viewsets.ModelViewSet):
@@ -148,7 +160,7 @@ class CategoryView(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategoryCreateSerializer
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAdminOrReadOnly]
+    # permission_classes = [IsAdminOrReadOnly]
 
     # filter_backends = [DjangoFilterBackend]
     # filterset_class = CategoryFilter
@@ -159,7 +171,7 @@ class CartItemView(viewsets.ModelViewSet):
 
     serializer_class = CartItemSerializer
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAdminOrBuyerOnly]
+    # permission_classes = [IsAdminOrBuyerOnly]
 
     def get_queryset(self):
         user = self.request.user
@@ -200,7 +212,7 @@ class CartView(viewsets.ModelViewSet):
 
     serializer_class = CartSerializer
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAdminOrBuyerOnly]
+    # permission_classes = [IsAdminOrBuyerOnly]
 
     def get_queryset(self):
         user = self.request.user
@@ -259,16 +271,22 @@ class UserView(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         user = self.request.user
-        instance = self.get_object()
+        target = self.get_object()
 
-        # Non-admin users can update ONLY themselves
-        if not user.is_superuser and user.role != CustomUser.ADMIN:
-            if instance.id != user.id:
-                raise PermissionDenied("You can update only your own profile.")
-
-            serializer.save(role=instance.role)  # role locked
-        else:
+        if user.is_superuser or user.role == "admin":
             serializer.save()
+            return
+
+        # ---------- AUTHOR / BASIC USER (SELF ONLY) ----------
+        if user.id == target.id:
+            serializer.save(
+                role=target.role,  # ❌ role self-assign block
+                is_superuser=target.is_superuser,
+                is_staff=target.is_staff,
+            )
+            return
+
+        raise PermissionDenied("You are not allowed to update this user.")
 
     def get_queryset(self):
         user = self.request.user

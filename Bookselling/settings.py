@@ -15,7 +15,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "api",
+    "api.apps.ApiConfig",
     "rest_framework",
     "corsheaders",
     "django_filters",
@@ -38,7 +38,9 @@ ROOT_URLCONF = "Bookselling.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [
+            BASE_DIR / "templates",
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -167,6 +169,6 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
 EMAIL_HOST_USER = "officialmdanwarulhaque@gmail.com"
-EMAIL_HOST_PASSWORD = "idmz apdf itzh noxr"
+EMAIL_HOST_PASSWORD = "idmzapdfitzhnoxr"
 
-DEFAULT_FROM_EMAIL = "My DRF App <yourmail@gmail.com>"
+DEFAULT_FROM_EMAIL = "BookSelling App <yourmail@gmail.com>"
