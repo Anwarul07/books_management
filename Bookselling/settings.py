@@ -86,7 +86,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Database
 
-
+# Database (if  it is commented from env file  than local sqlite will be used)
 DATABASES = {
     "default": dj_database_url.config(
         default=config("DATABASE_URL", default="sqlite:///books.sqlite3"),
