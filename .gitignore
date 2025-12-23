@@ -16,3 +16,4 @@ benv/
 # Static & media (Render)
 staticfiles/
 media/
+books.sqlite3
