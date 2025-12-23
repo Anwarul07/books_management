@@ -1,2 +1,18 @@
+# SQLite databases
+*.sqlite3
+books.sqlite3
+
+# Environment variables
 .env
 
+# Python
+__pycache__/
+*.pyc
+
+# Virtualenv
+venv/
+benv/
+
+# Static & media (Render)
+staticfiles/
+media/

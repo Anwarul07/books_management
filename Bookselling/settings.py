@@ -58,11 +58,15 @@ TEMPLATES = [
 WSGI_APPLICATION = "Bookselling.wsgi.application"
 
 
+import dj_database_url
+import os
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "books.sqlite3",
-    }
+    "default": dj_database_url.config(
+        default="sqlite:///books.sqlite3",
+        conn_max_age=600,
+        ssl_require=bool(os.getenv("DATABASE_URL")),
+    )
 }
 
 
@@ -116,7 +120,7 @@ CSRF_TRUSTED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
 import os
 
@@ -141,11 +145,8 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"]
 }
 
-AUTH_USER_MODEL = "api.CustomUser"
-
 
 AUTH_USER_MODEL = "api.CustomUser"
-
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",  # fallback
     "api.auth_backends.EmailOrMobileBackend",
