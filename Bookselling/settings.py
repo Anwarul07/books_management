@@ -95,26 +95,17 @@ USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:4000",
-    "http://127.0.0.1:4000",
-    "https://anwarbook.onrender.com",
-]
-CORS_ALLOW_METHODS = (
-    "DELETE",
-    "GET",
-    "OPTIONS",
-    "PATCH",
-    "POST",
-    "PUT",
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS", cast=lambda v: [s.strip() for s in v.split(",")], default=""
+)
+CORS_ALLOW_METHODS = config(
+    "CORS_ALLOW_METHODS", cast=lambda v: [s.strip() for s in v.split(",")], default=""
 )
 
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:4000",
-    "http://127.0.0.1:4000",
-    "https://anwarbook.onrender.com",
-]
+CSRF_TRUSTED_ORIGINS = config(
+    "CSRF_TRUSTED_ORIGINS", cast=lambda v: [s.strip() for s in v.split(",")], default=""
+)
 
 
 CORS_ALLOW_CREDENTIALS = True
@@ -181,3 +172,27 @@ DEFAULT_FROM_EMAIL = "BookSelling App <yourmail@gmail.com>"
 TWILIO_ACCOUNT_SID = config("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = config("TWILIO_AUTH_TOKEN")
 TWILIO_PHONE_NUMBER = config("TWILIO_PHONE_NUMBER")
+
+# WITHOUT DECOUPLE EXAMPLE
+
+# EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+# EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+
+# TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+# TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+# TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
+
+
+# pip install django-environ
+
+# import os
+# import environ
+
+# env = environ.Env()
+
+# EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
+# EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
+
+# TWILIO_ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
+# TWILIO_AUTH_TOKEN = os.environ["TWILIO_AUTH_TOKEN"]
+# TWILIO_PHONE_NUMBER = os.environ["TWILIO_PHONE_NUMBER"]
