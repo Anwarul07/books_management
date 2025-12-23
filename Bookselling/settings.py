@@ -59,13 +59,13 @@ WSGI_APPLICATION = "Bookselling.wsgi.application"
 
 
 import dj_database_url
-import os
+from decouple import config
 
 DATABASES = {
     "default": dj_database_url.config(
-        default="sqlite:///books.sqlite3",
+        default=config("DATABASE_URL", default="sqlite:///books.sqlite3"),
         conn_max_age=600,
-        ssl_require=bool(os.getenv("DATABASE_URL")),
+        ssl_require=bool(config("DATABASE_URL", default=None)),
     )
 }
 
