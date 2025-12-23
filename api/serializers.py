@@ -315,21 +315,15 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
 # ---------------- Book Categoty Serializer for Category details----------------
 class CategoryCreateSerializer(serializers.ModelSerializer):
     category_of_books = BooksReadSerializer(many=True, read_only=True)
+
     totalbook = serializers.SerializerMethodField()
     authors = serializers.SerializerMethodField()
     totalauthors = serializers.SerializerMethodField()
 
-    # 🔥 FIX: image fields
-    cover_image = serializers.SerializerMethodField()
-    front_image = serializers.SerializerMethodField()
-    behind_image = serializers.SerializerMethodField()
-    side_image = serializers.SerializerMethodField()
-    top_image = serializers.SerializerMethodField()
-    bottom_image = serializers.SerializerMethodField()
-
     class Meta:
         model = Category
         fields = "__all__"
+
         read_only_fields = [
             "category_of_books",
             "totalbook",
@@ -338,28 +332,6 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-
-    # ---------- image helpers ----------
-    def _get_image_url(self, image):
-        return image.url if image else None
-
-    def get_cover_image(self, obj):
-        return self._get_image_url(obj.cover_image)
-
-    def get_front_image(self, obj):
-        return self._get_image_url(obj.front_image)
-
-    def get_behind_image(self, obj):
-        return self._get_image_url(obj.behind_image)
-
-    def get_side_image(self, obj):
-        return self._get_image_url(obj.side_image)
-
-    def get_top_image(self, obj):
-        return self._get_image_url(obj.top_image)
-
-    def get_bottom_image(self, obj):
-        return self._get_image_url(obj.bottom_image)
 
     def get_totalbook(self, obj):
         return obj.category_of_books.count()
