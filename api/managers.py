@@ -46,7 +46,7 @@ class CustomUserManager(BaseUserManager):
             user.set_password(password)
 
         user.save(using=self._db)
-        print(f"User {username} created for  {role_choices}")
+        print(f"User {username} created for  {role} Role")
         return user
 
     def create_superuser(self, username, email, mobile, password=None, **extra_fields):

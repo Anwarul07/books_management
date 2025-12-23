@@ -3,6 +3,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from datetime import datetime
 from django.conf import settings
+from decouple import config
 
 
 class Command(BaseCommand):
@@ -12,20 +13,20 @@ class Command(BaseCommand):
         # Fake User Data for Testing
         class MockUser:
             def __init__(self):
-                self.username = "Mdanwarulhaque"
-                self.email = "mdanwarul064@gmail.com"
-                self.mobile = "7992468300"
-                self.role = "author"
-                self.profile = "https://your-site.com/profile/anwar"
+                self.username = config("test_username")
+                self.email = config("test_email")
+                self.mobile = config("test_mobile")
+                self.role = config("test_role")
+                self.profile = config("test_profile")
 
         user_instance = MockUser()
 
         # Context matching your signals
         context = {
             "user": user_instance,
-            "ADMIN_PHONE": "8791233565",
-            "SITE_NAME": "Bookselling",
-            "ADMIN_EMAIL": "officialmdanwarulhaque@gmail.com",
+            "ADMIN_PHONE": config("ADMIN_PHONE"),
+            "SITE_NAME": config("SITE_NAME"),
+            "ADMIN_EMAIL": config("ADMIN_EMAIL"),
             "date": "December 21, 2025",  # Fixed date for testing
         }
 
@@ -72,7 +73,7 @@ class Command(BaseCommand):
                     subject=f"[TEST] {t['sub']}",
                     body="Please open in HTML view.",
                     from_email=settings.DEFAULT_FROM_EMAIL,
-                    to=["officialmdanwarulhaque@gmail.com"],
+                    to=config("ADMIN_EMAIL"),
                 )
                 mail.attach_alternative(html_content, "text/html")
                 mail.send()
