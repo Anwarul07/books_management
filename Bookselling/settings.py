@@ -159,40 +159,40 @@ CORS_ALLOW_ALL_ORIGINS = False
 
 
 # Cloudinary Configuration
-CLOUDINARY_STORAGE = {
-    "CLOUD_NAME": config("CLOUDINARY_CLOUD_NAME"),
-    "API_KEY": config("CLOUDINARY_API_KEY"),
-    "API_SECRET": config("CLOUDINARY_API_SECRET"),
-}
+# CLOUDINARY_STORAGE = {
+#     "CLOUD_NAME": config("CLOUDINARY_CLOUD_NAME"),
+#     "API_KEY": config("CLOUDINARY_API_KEY"),
+#     "API_SECRET": config("CLOUDINARY_API_SECRET"),
+# }
 
-STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
-
-STORAGES = {
-    "default": {
-        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
-
-
-# MEDIA_URL = "/media/"  # URL path for media files
-# MEDIA_ROOT = os.path.join(BASE_DIR, "media")  # Directory to store media files
-
-# STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+# STATIC_URL = "/static/"
 # STATIC_ROOT = BASE_DIR / "staticfiles"
-# STATIC_URL = "static/"
 
 # STORAGES = {
 #     "default": {
-#         "BACKEND": "django.core.files.storage.FileSystemStorage",
+#         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
 #     },
 #     "staticfiles": {
 #         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
 #     },
 # }
+
+
+MEDIA_URL = "/media/"  # URL path for media files
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")  # Directory to store media file
+
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_URL = "static/"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 
 # WITHOUT DECOUPLE EXAMPLE
