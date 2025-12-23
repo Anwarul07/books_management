@@ -73,7 +73,7 @@ class Command(BaseCommand):
                     subject=f"[TEST] {t['sub']}",
                     body="Please open in HTML view.",
                     from_email=settings.DEFAULT_FROM_EMAIL,
-                    to=config("ADMIN_EMAIL"),
+                    to=[config("ADMIN_EMAIL")],
                 )
                 mail.attach_alternative(html_content, "text/html")
                 mail.send()
