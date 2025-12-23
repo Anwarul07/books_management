@@ -1,6 +1,7 @@
+import dj_database_url
 from pathlib import Path
 from decouple import config
-
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -22,6 +23,13 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "django_filters",
+]
+
+
+# Cloudinary apps
+INSTALLED_APPS += [
+    "cloudinary",
+    "cloudinary_storage",
 ]
 
 MIDDLEWARE = [
@@ -58,18 +66,6 @@ TEMPLATES = [
 WSGI_APPLICATION = "Bookselling.wsgi.application"
 
 
-import dj_database_url
-from decouple import config
-
-DATABASES = {
-    "default": dj_database_url.config(
-        default=config("DATABASE_URL", default="sqlite:///books.sqlite3"),
-        conn_max_age=600,
-        ssl_require=bool(config("DATABASE_URL", default=None)),
-    )
-}
-
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -85,64 +81,27 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
-LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
-USE_I18N = True
-USE_TZ = True
-
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
-CORS_ALLOWED_ORIGINS = config(
-    "CORS_ALLOWED_ORIGINS", cast=lambda v: [s.strip() for s in v.split(",")], default=""
-)
-CORS_ALLOW_METHODS = config(
-    "CORS_ALLOW_METHODS", cast=lambda v: [s.strip() for s in v.split(",")], default=""
-)
+# Database
 
 
-CSRF_TRUSTED_ORIGINS = config(
-    "CSRF_TRUSTED_ORIGINS", cast=lambda v: [s.strip() for s in v.split(",")], default=""
-)
-
-
-CORS_ALLOW_CREDENTIALS = True
-
-
-CORS_ALLOW_ALL_ORIGINS = False
-
-import os
-
-MEDIA_URL = "/media/"  # URL path for media files
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")  # Directory to store media files
-
-STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-STATIC_ROOT = BASE_DIR / "staticfiles"
-STATIC_URL = "static/"
-
-
-# settings.py
-REST_FRAMEWORK = {
-    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"]
+DATABASES = {
+    "default": dj_database_url.config(
+        default=config("DATABASE_URL", default="sqlite:///books.sqlite3"),
+        conn_max_age=600,
+        ssl_require=bool(config("DATABASE_URL", default=None)),
+    )
 }
 
 
+# Custom User Model and Authentication  and Permissions Backends
 AUTH_USER_MODEL = "api.CustomUser"
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",  # fallback
     "api.auth_backends.EmailOrMobileBackend",
 ]
-
 
 # REST_FRAMEWORK = {
 #     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -157,21 +116,84 @@ AUTHENTICATION_BACKENDS = [
 # }
 
 
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# Filtering Backends
+REST_FRAMEWORK = {
+    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"]
+}
 
+
+# Email Configuration
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-
 EMAIL_HOST_USER = config("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
-
 DEFAULT_FROM_EMAIL = "BookSelling App <yourmail@gmail.com>"
 
 
 TWILIO_ACCOUNT_SID = config("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = config("TWILIO_AUTH_TOKEN")
 TWILIO_PHONE_NUMBER = config("TWILIO_PHONE_NUMBER")
+
+
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "UTC"
+USE_I18N = True
+USE_TZ = True
+
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS", cast=lambda v: [s.strip() for s in v.split(",")], default=""
+)
+CORS_ALLOW_METHODS = config(
+    "CORS_ALLOW_METHODS", cast=lambda v: [s.strip() for s in v.split(",")], default=""
+)
+
+CSRF_TRUSTED_ORIGINS = config(
+    "CSRF_TRUSTED_ORIGINS", cast=lambda v: [s.strip() for s in v.split(",")], default=""
+)
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_ALL_ORIGINS = False
+
+
+# Cloudinary Configuration
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": config("CLOUDINARY_CLOUD_NAME"),
+    "API_KEY": config("CLOUDINARY_API_KEY"),
+    "API_SECRET": config("CLOUDINARY_API_SECRET"),
+}
+
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+
+# MEDIA_URL = "/media/"  # URL path for media files
+# MEDIA_ROOT = os.path.join(BASE_DIR, "media")  # Directory to store media files
+
+# STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+# STATIC_ROOT = BASE_DIR / "staticfiles"
+# STATIC_URL = "static/"
+
+# STORAGES = {
+#     "default": {
+#         "BACKEND": "django.core.files.storage.FileSystemStorage",
+#     },
+#     "staticfiles": {
+#         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+#     },
+# }
+
 
 # WITHOUT DECOUPLE EXAMPLE
 
