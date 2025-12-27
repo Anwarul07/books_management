@@ -347,12 +347,12 @@ class UserRegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
+        user = self.request.user
         # 🔒 logged-in user cannot register another account
-        if request.user.is_authenticated:
+        if user.is_authenticated and not user.is_superuser:
             raise PermissionDenied(
                 "You are already logged in. You cannot register another user."
             )
-
         return super().create(request, *args, **kwargs)
 
 
