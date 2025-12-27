@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from .views import (
     home,
+    stats,
     BooksView,
     AuthorView,
     AuthorSelfView,
@@ -32,10 +33,7 @@ router.register("users", views.UserView, basename="user")
 
 urlpatterns = [
     path("", include(router.urls)),
-    path("", home, name="home"),
-    path("status/", home, name="status"),
-    path("sendotp/", SendOTPView.as_view()),
-    path("register/", UserRegisterView.as_view()),
+
 ]
 
 

@@ -505,10 +505,10 @@ class UserSerializer(serializers.ModelSerializer):
 
         return value
 
-    def create(self, validated_data):
-        raise serializers.ValidationError(
-            "User creation is only allowed via OTP-based registration."
-        )
+    # def create(self, validated_data):
+    #     raise serializers.ValidationError(
+    #         "User creation is only allowed via OTP-based registration."
+    #     )
 
     def update(self, instance, validated_data):
         request = self.context.get("request")
