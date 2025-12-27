@@ -5,6 +5,7 @@ from decimal import Decimal
 from .models import CustomUser
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import F
+from django.db import transaction
 from .otp import *
 from django.contrib.auth.hashers import make_password
 
@@ -537,17 +538,46 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class SendOTPSerializer(serializers.Serializer):
-    otp_via = serializers.ChoiceField(choices=["email", "sms"], default="sms")
+    otp_via = serializers.ChoiceField(choices=[OTP.EMAIL, OTP.SMS], default=OTP.SMS)
     email = serializers.EmailField(required=False)
     mobile = serializers.CharField(max_length=10, required=False)
 
     def validate(self, data):
-        if data["otp_via"] == "email" and not data.get("email"):
+        if data["otp_via"] == OTP.EMAIL and not data.get("email"):
             raise serializers.ValidationError("Email required")
 
-        if data["otp_via"] == "sms" and not data.get("mobile"):
+        if data["otp_via"] == OTP.SMS and not data.get("mobile"):
             raise serializers.ValidationError("Mobile required")
 
+        if data.get("email") and data.get("mobile"):
+            raise serializers.ValidationError(
+                "Provide either email or mobile, not both"
+            )
+
+        # 🔒 RATE LIMIT (ANTI-SPAM)
+        one_min_ago = timezone.now() - timedelta(minutes=1)
+
+        if data.get("email"):
+            if OTP.objects.filter(
+                email=data["email"],
+                purpose="registration",
+                created_at__gte=one_min_ago,
+            ).exists():
+                raise serializers.ValidationError(
+                    "Please wait 1 minute before requesting another OTP"
+                )
+
+        if data.get("mobile"):
+            if OTP.objects.filter(
+                mobile=data["mobile"],
+                purpose="registration",
+                created_at__gte=one_min_ago,
+            ).exists():
+                raise serializers.ValidationError(
+                    "Please wait 1 minute before requesting another OTP"
+                )
+
+        # Already registered checks
         if data.get("email") and User.objects.filter(email=data["email"]).exists():
             raise serializers.ValidationError("Email already registered")
 
@@ -556,6 +586,7 @@ class SendOTPSerializer(serializers.Serializer):
 
         return data
 
+    @transaction.atomic
     def create(self, validated_data):
         email = validated_data.get("email")
         mobile = validated_data.get("mobile")
@@ -581,6 +612,7 @@ class SendOTPSerializer(serializers.Serializer):
             otp_via=otp_via,
             otp=hashed_otp,
             expires_at=expiry_time,
+            purpose="registration",
         )
 
         # 🔔 send OTP
@@ -608,6 +640,11 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
     def validate(self, data):
         if not data.get("email") and not data.get("mobile"):
             raise serializers.ValidationError("Email or mobile required")
+
+        if data.get("email") and data.get("mobile"):
+            raise serializers.ValidationError(
+                "Provide either email or mobile, not both"
+            )
 
         otp_qs = OTP.objects.filter(
             is_used=False,
@@ -637,31 +674,12 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
     def create(self, validated_data):
         otp_obj = validated_data.pop("otp_obj")
         validated_data.pop("otp")
+        password = validated_data.pop("password")
+        role = validated_data.pop("role")
 
         # OTP consume
         otp_obj.is_used = True
         otp_obj.save()
-
-        # user create
-        user = CustomUser.objects.create_user(
-            email=validated_data.get("email"),
-            mobile=validated_data.get("mobile"),
-            username=validated_data["username"],
-            password=validated_data["password"],
-            role=validated_data["role"],
-        )
-
-        if user.role == CustomUser.AUTHOR:
-            user.is_staff = True
-            user.save()
-
-        return user
-    
-
-    def create(self, validated_data):
-        password = validated_data.pop("password")
-        role = validated_data.pop("role")
-
         user = CustomUser.objects.create_user(
             password=password,
             role=role,
@@ -674,6 +692,23 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
 
         user.save()
         return user
+
+    # def create(self, validated_data):
+
+    # # user create
+    # user = CustomUser.objects.create_user(
+    #     email=validated_data.get("email"),
+    #     mobile=validated_data.get("mobile"),
+    #     username=validated_data["username"],
+    #     password=validated_data["password"],
+    #     role=validated_data["role"],
+    # )
+
+    # if user.role == CustomUser.AUTHOR:
+    #     user.is_staff = True
+    #     user.save()
+
+    # return user
 
 
 """

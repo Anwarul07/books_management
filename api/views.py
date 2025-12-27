@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from .otp import *
+from rest_framework import generics, status
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -353,7 +354,20 @@ class UserRegisterView(generics.CreateAPIView):
             raise PermissionDenied(
                 "You are already logged in. You cannot register another user."
             )
-        return super().create(request, *args, **kwargs)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        created_user = serializer.save()
+        return Response(
+            {
+                "message": "User registered successfully",
+                "user_id": created_user.id,
+                "email": created_user.email,
+                "mobile": created_user.mobile,
+                "role": created_user.role,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 @api_view(["GET"])

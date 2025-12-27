@@ -81,6 +81,9 @@ class OTP(models.Model):
         if not self.email and not self.mobile:
             raise ValidationError("Either email or mobile is required")
 
+    def __str__(self):
+        return f"OTP({self.email or self.mobile})"
+
 
 # ---Category Model ---
 class Category(models.Model):
