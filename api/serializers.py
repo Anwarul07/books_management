@@ -549,10 +549,10 @@ class SendOTPSerializer(serializers.Serializer):
         if data["otp_via"] == OTP.SMS and not data.get("mobile"):
             raise serializers.ValidationError("Mobile required")
 
-        if data.get("email") and data.get("mobile"):
-            raise serializers.ValidationError(
-                "Provide either email or mobile, not both"
-            )
+        # if data.get("email") and data.get("mobile"):
+        #     raise serializers.ValidationError(
+        #         "Provide either email or mobile, not both"
+        #     )
 
         # 🔒 RATE LIMIT (ANTI-SPAM)
         one_min_ago = timezone.now() - timedelta(minutes=1)
@@ -641,26 +641,42 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
         if not data.get("email") and not data.get("mobile"):
             raise serializers.ValidationError("Email or mobile required")
 
-        if data.get("email") and data.get("mobile"):
-            raise serializers.ValidationError(
-                "Provide either email or mobile, not both"
-            )
+        # if data.get("email") and data.get("mobile"):
+        #     raise serializers.ValidationError(
+        #         "Provide either email or mobile, not both"
+        #     )
 
+        # 🔍 find latest OTP (regardless of medium)
         otp_qs = OTP.objects.filter(
             is_used=False,
             purpose="registration",
-        )
+        ).order_by("-created_at")
 
-        if data.get("email"):
-            otp_qs = otp_qs.filter(email=data["email"])
-
-        if data.get("mobile"):
-            otp_qs = otp_qs.filter(mobile=data["mobile"])
-
-        otp_obj = otp_qs.order_by("-created_at").first()
-
+        otp_obj = otp_qs.first()
         if not otp_obj:
             raise serializers.ValidationError("Invalid OTP")
+
+        # 🔒 medium mismatch check
+        if otp_obj.email and not data.get("email"):
+            raise serializers.ValidationError(
+                "OTP was sent to email. Please verify using email."
+            )
+
+        if otp_obj.mobile and not data.get("mobile"):
+            raise serializers.ValidationError(
+                "OTP was sent to mobile. Please verify using mobile number."
+            )
+
+        # 🔒 now exact match
+        if otp_obj.email != data.get("email"):
+            raise serializers.ValidationError(
+                "Email mismatch. Please use the same email used while sending OTP."
+            )
+
+        if otp_obj.mobile != data.get("mobile"):
+            raise serializers.ValidationError(
+                "Mobile mismatch. Please use the same mobile number used while sending OTP."
+            )
 
         if otp_obj.is_expired():
             raise serializers.ValidationError("OTP expired")

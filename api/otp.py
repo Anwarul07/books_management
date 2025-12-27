@@ -10,7 +10,7 @@ from django.utils.html import strip_tags
 from twilio.rest import Client
 
 
-OTP_EXPIRY_MINUTES = 2
+OTP_EXPIRY_MINUTES = 5
 
 
 def generate_otp():

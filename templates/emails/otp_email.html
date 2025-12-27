@@ -83,7 +83,9 @@
                 {{ otp }}
             </div>
 
-            <p>This OTP is valid for the next <b>2 minutes</b>. Please do not share this code with anyone, including
+            <p>This OTP is valid for the next <b>5 minutes. {{ otp }} send time {% now "F d, Y" %} at {% now "H:i A" %}
+                    IST</b>. Please do not share this code with anyone,
+                including
                 BookExplore employees.</p>
 
             <p class="warning">
