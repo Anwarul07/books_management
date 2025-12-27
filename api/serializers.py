@@ -6,6 +6,7 @@ from .models import CustomUser
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import F
 from .otp import *
+from django.contrib.auth.hashers import make_password
 
 
 from django.contrib.auth import get_user_model
@@ -455,7 +456,7 @@ class CartSerializer(serializers.ModelSerializer):
         return value
 
 
-# ---------------- User Create Serializer for User details----------------
+# ---------------- User Serializer for User details----------------
 class UserSerializer(serializers.ModelSerializer):
     role = serializers.ChoiceField(
         choices=[
@@ -504,21 +505,9 @@ class UserSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        password = validated_data.pop("password")
-        role = validated_data.pop("role")
-
-        user = CustomUser.objects.create_user(
-            password=password,
-            role=role,
-            **validated_data,
+        raise serializers.ValidationError(
+            "User creation is only allowed via OTP-based registration."
         )
-
-        # Role-based flags
-        if role == CustomUser.AUTHOR:
-            user.is_staff = True
-
-        user.save()
-        return user
 
     def update(self, instance, validated_data):
         request = self.context.get("request")
@@ -548,28 +537,17 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class SendOTPSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    first_name = serializers.CharField()
-    last_name = serializers.CharField(required=False, allow_blank=True)
+    otp_via = serializers.ChoiceField(choices=["email", "sms"], default="sms")
     email = serializers.EmailField(required=False)
     mobile = serializers.CharField(max_length=10, required=False)
-    password = serializers.CharField(write_only=True)
-    role = serializers.ChoiceField(choices=[User.AUTHOR, User.BASIC_USER])
-    channel = serializers.ChoiceField(choices=["email", "sms"])
 
     def validate(self, data):
-        # ---- channel based required field ----
-        if data["channel"] == "email" and not data.get("email"):
-            raise serializers.ValidationError("Email required for email OTP")
+        if data["otp_via"] == "email" and not data.get("email"):
+            raise serializers.ValidationError("Email required")
 
-        if data["channel"] == "sms" and not data.get("mobile"):
-            raise serializers.ValidationError("Mobile required for SMS OTP")
+        if data["otp_via"] == "sms" and not data.get("mobile"):
+            raise serializers.ValidationError("Mobile required")
 
-        # ---- admin registration block ----
-        if data["role"] == User.ADMIN:
-            raise serializers.ValidationError("Admin registration not allowed")
-
-        # ---- unique checks ----
         if data.get("email") and User.objects.filter(email=data["email"]).exists():
             raise serializers.ValidationError("Email already registered")
 
@@ -581,25 +559,32 @@ class SendOTPSerializer(serializers.Serializer):
     def create(self, validated_data):
         email = validated_data.get("email")
         mobile = validated_data.get("mobile")
+        otp_via = validated_data["otp_via"]
 
-        # ---- cleanup old OTPs ----
-        OTP.objects.filter(email=email, mobile=mobile, is_verified=False).delete()
+        # 🔥 delete old unused OTPs
+        if otp_via == OTP.EMAIL:
+            OTP.objects.filter(
+                email=email, is_used=False, purpose="registration"
+            ).delete()
+        else:
+            OTP.objects.filter(
+                mobile=mobile, is_used=False, purpose="registration"
+            ).delete()
 
-        otp_code = generate_otp()
+        otp_code = generate_otp()  # e.g. 6-digit
+        hashed_otp = make_password(otp_code)
+        expiry_time = get_expiry_time()  # now + 5 minutes
 
-        otp = OTP(
+        otp = OTP.objects.create(
             email=email,
             mobile=mobile,
-            channel=validated_data["channel"],
-            otp=otp_code,
-            expires_at=get_expiry_time(),
+            otp_via=otp_via,
+            otp=hashed_otp,
+            expires_at=expiry_time,
         )
 
-        otp.full_clean()  # triggers model clean()
-        otp.save()
-
-        # ---- send OTP ----
-        if otp.channel == "email":
+        # 🔔 send OTP
+        if otp_via == OTP.EMAIL:
             send_email_otp(email, otp_code)
         else:
             send_sms_otp(mobile, otp_code)
@@ -607,64 +592,88 @@ class SendOTPSerializer(serializers.Serializer):
         return otp
 
 
-class VerifyOTPSerializer(serializers.Serializer):
+from django.contrib.auth.hashers import check_password
+
+
+class VerifyOTPAndRegisterSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False)
-    mobile = serializers.CharField(required=False)
-    otp = serializers.CharField(max_length=6)
+    mobile = serializers.CharField(max_length=10, required=False)
+    otp = serializers.CharField(write_only=True)
+
+    # user fields (same request me create hoga)
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+    role = serializers.ChoiceField(choices=[CustomUser.AUTHOR, CustomUser.BASIC_USER])
 
     def validate(self, data):
-        # ---- identifier required ----
         if not data.get("email") and not data.get("mobile"):
-            raise serializers.ValidationError(
-                "Email or mobile is required for OTP verification"
-            )
+            raise serializers.ValidationError("Email or mobile required")
 
-        filters = {
-            "otp": data["otp"],
-            "is_verified": False,
-        }
+        otp_qs = OTP.objects.filter(
+            is_used=False,
+            purpose="registration",
+        )
 
         if data.get("email"):
-            filters["email"] = data["email"]
+            otp_qs = otp_qs.filter(email=data["email"])
 
         if data.get("mobile"):
-            filters["mobile"] = data["mobile"]
+            otp_qs = otp_qs.filter(mobile=data["mobile"])
 
-        otp_qs = OTP.objects.filter(**filters)
+        otp_obj = otp_qs.order_by("-created_at").first()
 
-        if not otp_qs.exists():
+        if not otp_obj:
             raise serializers.ValidationError("Invalid OTP")
-
-        otp_obj = otp_qs.first()
 
         if otp_obj.is_expired():
             raise serializers.ValidationError("OTP expired")
 
-        self.otp_obj = otp_obj
+        if not check_password(data["otp"], otp_obj.otp):
+            raise serializers.ValidationError("Invalid OTP")
+
+        data["otp_obj"] = otp_obj
         return data
 
     def create(self, validated_data):
-        user_data = self.context.get("user_data")
-        if not user_data:
-            raise serializers.ValidationError("Registration session expired")
+        otp_obj = validated_data.pop("otp_obj")
+        validated_data.pop("otp")
 
-        otp = self.otp_obj
+        # OTP consume
+        otp_obj.is_used = True
+        otp_obj.save()
 
-        if otp.is_verified:
-            raise serializers.ValidationError("OTP already used")
-
-        otp.is_verified = True
-        otp.save(update_fields=["is_verified"])
-
-        return User.objects.create_user(
-            username=user_data["username"],
-            email=user_data.get("email"),
-            mobile=user_data.get("mobile"),
-            password=user_data["password"],
-            first_name=user_data["first_name"],
-            last_name=user_data.get("last_name", ""),
-            role=user_data["role"],  # author / basic_user only
+        # user create
+        user = CustomUser.objects.create_user(
+            email=validated_data.get("email"),
+            mobile=validated_data.get("mobile"),
+            username=validated_data["username"],
+            password=validated_data["password"],
+            role=validated_data["role"],
         )
+
+        if user.role == CustomUser.AUTHOR:
+            user.is_staff = True
+            user.save()
+
+        return user
+    
+
+    def create(self, validated_data):
+        password = validated_data.pop("password")
+        role = validated_data.pop("role")
+
+        user = CustomUser.objects.create_user(
+            password=password,
+            role=role,
+            **validated_data,
+        )
+
+        # Role-based flags
+        if role == CustomUser.AUTHOR:
+            user.is_staff = True
+
+        user.save()
+        return user
 
 
 """

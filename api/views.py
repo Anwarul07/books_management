@@ -29,7 +29,7 @@ from .serializers import (
     CartSerializer,
     UserSerializer,
     SendOTPSerializer,
-    VerifyOTPSerializer,
+    VerifyOTPAndRegisterSerializer,
 )
 
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
@@ -39,6 +39,7 @@ from .permissions import (
     IsAdminOrReadOnly,
     IsAdminOrBuyerOnly,
     IsAdminOrAuthorOnly,
+    IsAdminOrAuthorOrBuyerOnly,
 )
 
 
@@ -48,7 +49,7 @@ class BooksView(viewsets.ModelViewSet):
     queryset = Books.objects.all()
     serializer_class = BooksCreateSerializer
     authentication_classes = [SessionAuthentication]
-    # permission_classes = [IsAdminOrAuthorOrReadOnly]
+    permission_classes = [IsAdminOrAuthorOrReadOnly]
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -90,7 +91,7 @@ class AuthorView(viewsets.ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
     authentication_classes = [SessionAuthentication]
-    # permission_classes = [IsAdminOrAuthorSpecificOrReadOnly]
+    permission_classes = [IsAdminOrAuthorSpecificOrReadOnly]
 
     def perform_create(self, serializer):
         users = self.request.user
@@ -121,7 +122,7 @@ class AuthorSelfView(viewsets.ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
     authentication_classes = [SessionAuthentication]
-    # permission_classes = [IsAdminOrAuthorOnly]
+    permission_classes = [IsAdminOrAuthorOnly]
 
     def get_queryset(self):
         user = self.request.user
@@ -169,7 +170,7 @@ class CategoryView(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategoryCreateSerializer
     authentication_classes = [SessionAuthentication]
-    # permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAdminOrReadOnly]
 
     # filter_backends = [DjangoFilterBackend]
     # filterset_class = CategoryFilter
@@ -179,14 +180,15 @@ class CartItemView(viewsets.ModelViewSet):
     """CartItmeView Only Admin and Buyer can Crud Thier Own CartItem"""
 
     serializer_class = CartItemSerializer
+    qeuryset = CartItem.objects.all()
     authentication_classes = [SessionAuthentication]
-    # permission_classes = [IsAdminOrBuyerOnly]
+    permission_classes = [IsAdminOrBuyerOnly]
 
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser or user.role == "admin":
-            return CartItem.objects.all()
-        return CartItem.objects.filter(user=user)
+    # def get_queryset(self):
+    #     user = self.request.user
+    #     if user.is_superuser or user.role == "admin":
+    #         return CartItem.objects.all()
+    #     return CartItem.objects.filter(user=user)
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -219,15 +221,16 @@ class CartItemView(viewsets.ModelViewSet):
 class CartView(viewsets.ModelViewSet):
     """CartView Only Admin and Buyer can Crud Thier Own Cart"""
 
+    queryset = Cart.objects.all()
     serializer_class = CartSerializer
     authentication_classes = [SessionAuthentication]
-    # permission_classes = [IsAdminOrBuyerOnly]
+    permission_classes = [IsAdminOrBuyerOnly]
 
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser or user.role == "admin":
-            return Cart.objects.all()
-        return Cart.objects.filter(user=user)
+    # def get_queryset(self):
+    #     user = self.request.user
+    #     if user.is_superuser or user.role == "admin":
+    #         return Cart.objects.all()
+    #     return Cart.objects.filter(user=user)
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -262,15 +265,16 @@ class CartView(viewsets.ModelViewSet):
 class UserView(viewsets.ModelViewSet):
     """UserView Only Admin and User can Crud Thier Own CartItem"""
 
+    http_method_names = ["get", "put", "patch", "delete"]
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     authentication_classes = [SessionAuthentication]
-    # permission_classes = [IsAdminOrAuthorOrBuyerOnly]
+    permission_classes = [IsAdminOrAuthorOrBuyerOnly]
 
     def perform_create(self, serializer):
         user = self.request.user
 
-        # ❌ Non-admin cannot create users
+        #         # ❌ Non-admin logged in  cannot create another  users
         if user.is_authenticated and not user.is_superuser:
             raise PermissionDenied(
                 "You are already logged in. You cannot register another user."
@@ -286,7 +290,7 @@ class UserView(viewsets.ModelViewSet):
             serializer.save()
             return
 
-        # ---------- AUTHOR / BASIC USER (SELF ONLY) ----------
+        #         # ---------- AUTHOR / BASIC USER (SELF ONLY) ----------
         if user.id == target.id:
             serializer.save(
                 role=target.role,  # ❌ role self-assign block
@@ -313,47 +317,43 @@ class UserView(viewsets.ModelViewSet):
 
 
 # OTP Views
-class SendOTPView(APIView):
-    # permission_classes = [AllowAny]
+from rest_framework.permissions import AllowAny
 
-    def post(self, request):
-        serializer = SendOTPSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        # Store user data temporarily
-        request.session["user_data"] = serializer.validated_data
-
-        return Response(
-            {"message": "OTP sent successfully"},
-            status=status.HTTP_200_OK,
-        )
+from rest_framework import generics
 
 
-class VerifyOTPView(APIView):
-    # permission_classes = [AllowAny]
+class SendOTPView(generics.CreateAPIView):
+    http_method_names = ["post"]
+    serializer_class = SendOTPSerializer
+    permission_classes = [AllowAny]
 
-    def post(self, request):
-        if not request.session.get("user_data"):
-            return Response(
-                {"detail": "Registration session expired"},
-                status=status.HTTP_400_BAD_REQUEST,
+    # def post(self, request):
+    #     serializer = SendOTPSerializer(data=request.data)
+    #     serializer.is_valid(raise_exception=True)
+    #     serializer.save()
+
+    #     return Response(
+    #         {"message": "OTP sent successfully"},
+    #         status=status.HTTP_200_OK,
+    #     )
+
+
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+
+
+class UserRegisterView(generics.CreateAPIView):
+    http_method_names = ["post"]
+    serializer_class = VerifyOTPAndRegisterSerializer
+    permission_classes = [AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        # 🔒 logged-in user cannot register another account
+        if request.user.is_authenticated:
+            raise PermissionDenied(
+                "You are already logged in. You cannot register another user."
             )
 
-        serializer = VerifyOTPSerializer(
-            data=request.data,
-            context={"user_data": request.session.get("user_data")},
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        # 🔥 Clear session after successful registration
-        request.session.pop("user_data", None)
-
-        return Response(
-            {"message": "Registration successful"},
-            status=status.HTTP_201_CREATED,
-        )
+        return super().create(request, *args, **kwargs)
 
 
 @api_view(["GET"])
@@ -539,3 +539,17 @@ def stats(request):
 | `options(request, *args, **kwargs)`            | Handle HTTP OPTIONS request         |
 
 """
+
+
+# class UserMeView(generics.RetrieveUpdateAPIView):
+#     serializer_class = UserSerializer
+#     permission_classes = [IsAuthenticated]
+
+#     def get_object(self):
+#         return self.request.user
+
+
+# class AdminUserViewSet(viewsets.ModelViewSet):
+#     queryset = CustomUser.objects.all()
+#     serializer_class = UserSerializer
+#     permission_classes = [IsAdminUser]

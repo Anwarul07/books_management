@@ -54,26 +54,28 @@ class OTP(models.Model):
     EMAIL = "email"
     SMS = "sms"
 
-    CHANNEL_CHOICES = (
+    OTP_VIA = (
         (EMAIL, "Email"),
-        (SMS, "SMS"),
+        (SMS, "SMS/Text Message"),
     )
 
     email = models.EmailField(blank=True, null=True)
     mobile = models.CharField(max_length=10, blank=True, null=True)
 
-    otp = models.CharField(max_length=6)
-    channel = models.CharField(max_length=10, choices=CHANNEL_CHOICES)
+    otp_via = models.CharField(max_length=10, choices=OTP_VIA, default=EMAIL)
+    otp = models.CharField(max_length=128)
 
-    is_verified = models.BooleanField(default=False)
+    purpose = models.CharField(max_length=30, default="registration")
+    is_used = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
 
     def is_expired(self):
         return timezone.now() > self.expires_at
 
-    def __str__(self):
-        return f"OTP for {self.email or self.mobile}"
+    def is_valid(self):
+        return not self.is_used and not self.is_expired()
 
     def clean(self):
         if not self.email and not self.mobile:
