@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "django_filters",
+    "rest_framework_simplejwt",
 ]
 
 
@@ -30,6 +31,7 @@ INSTALLED_APPS = [
 INSTALLED_APPS += [
     "cloudinary",
     "cloudinary_storage",
+    "rest_framework_simplejwt.token_blacklist",
 ]
 
 MIDDLEWARE = [
@@ -103,22 +105,22 @@ AUTHENTICATION_BACKENDS = [
     "api.auth_backends.EmailOrMobileBackend",
 ]
 
-# REST_FRAMEWORK = {
-#     "DEFAULT_AUTHENTICATION_CLASSES": [
-#         "rest_framework.authentication.SessionAuthentication",
-#         # "rest_framework.authentication.TokenAuthentication",
-#         # Add other authentication classes as needed, e.g., 'rest_framework_simplejwt.authentication.JWTAuthentication',
-#     ],
-#     # "DEFAULT_PERMISSION_CLASSES": [
-#     #     "rest_framework.permissions.IsAuthenticated",
-#     #     # Add other global permission classes if desired
-#     # ],
-# }
-
-
-# Filtering Backends
 REST_FRAMEWORK = {
-    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"]
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
+}
+
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=2),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
 

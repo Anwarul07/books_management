@@ -1,16 +1,16 @@
-from django.contrib.auth import get_user_model
-from django.contrib.auth.models import User
-from rest_framework import serializers
-from decimal import Decimal
-from .models import CustomUser
-from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import F
-from django.db import transaction
 from .otp import *
-from django.contrib.auth.hashers import make_password
-
-
+from decimal import Decimal
+from django.db.models import F
+from .models import CustomUser
+from django.db import transaction
+from rest_framework import serializers
+from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import check_password
+from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 
@@ -505,10 +505,29 @@ class UserSerializer(serializers.ModelSerializer):
 
         return value
 
-    # def create(self, validated_data):
-    #     raise serializers.ValidationError(
-    #         "User creation is only allowed via OTP-based registration."
-    #     )
+    def create(self, validated_data):
+        request = self.context.get("request")
+
+        if (
+            not request
+            or not request.user.is_authenticated
+            or not request.user.is_superuser
+        ):
+            raise serializers.ValidationError(
+                "User creation is only allowed via OTP-based registration."
+            )
+
+        password = validated_data.pop("password")
+
+        user = CustomUser(**validated_data)
+        user.set_password(password)  # ✅ hash password
+
+        # Role-based flags
+        if user.role == CustomUser.AUTHOR:
+            user.is_staff = True
+
+        user.save()
+        return user
 
     def update(self, instance, validated_data):
         request = self.context.get("request")
@@ -560,7 +579,7 @@ class SendOTPSerializer(serializers.Serializer):
         if data.get("email"):
             if OTP.objects.filter(
                 email=data["email"],
-                purpose="registration",
+                purpose=OTP.REGISTRATION,
                 created_at__gte=one_min_ago,
             ).exists():
                 raise serializers.ValidationError(
@@ -570,7 +589,7 @@ class SendOTPSerializer(serializers.Serializer):
         if data.get("mobile"):
             if OTP.objects.filter(
                 mobile=data["mobile"],
-                purpose="registration",
+                purpose=OTP.REGISTRATION,
                 created_at__gte=one_min_ago,
             ).exists():
                 raise serializers.ValidationError(
@@ -595,11 +614,11 @@ class SendOTPSerializer(serializers.Serializer):
         # 🔥 delete old unused OTPs
         if otp_via == OTP.EMAIL:
             OTP.objects.filter(
-                email=email, is_used=False, purpose="registration"
+                email=email, is_used=False, purpose=OTP.REGISTRATION
             ).delete()
         else:
             OTP.objects.filter(
-                mobile=mobile, is_used=False, purpose="registration"
+                mobile=mobile, is_used=False, purpose=OTP.REGISTRATION
             ).delete()
 
         otp_code = generate_otp()  # e.g. 6-digit
@@ -612,7 +631,7 @@ class SendOTPSerializer(serializers.Serializer):
             otp_via=otp_via,
             otp=hashed_otp,
             expires_at=expiry_time,
-            purpose="registration",
+            purpose=OTP.REGISTRATION,
         )
 
         # 🔔 send OTP
@@ -647,10 +666,19 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
         #     )
 
         # 🔍 find latest OTP (regardless of medium)
-        otp_qs = OTP.objects.filter(
-            is_used=False,
-            purpose="registration",
-        ).order_by("-created_at")
+
+        filters = {
+            "is_used": False,
+            "purpose": OTP.REGISTRATION,
+        }
+
+        if data.get("email"):
+            filters["email"] = data["email"]
+
+        if data.get("mobile"):
+            filters["mobile"] = data["mobile"]
+
+        otp_qs = OTP.objects.filter(**filters).order_by("-created_at")
 
         otp_obj = otp_qs.first()
         if not otp_obj:
@@ -725,6 +753,99 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
     #     user.save()
 
     # return user
+
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False)
+    mobile = serializers.CharField(required=False)
+    password = serializers.CharField(required=False, write_only=True)
+    otp = serializers.CharField(required=False, write_only=True)
+
+    def validate(self, data):
+        email = data.get("email")
+        mobile = data.get("mobile")
+        password = data.get("password")
+        otp = data.get("otp")
+
+        # ---------- BASIC VALIDATIONS ----------
+        if not email and not mobile:
+            raise serializers.ValidationError("Email or mobile is required.")
+
+        if email and mobile:
+            raise serializers.ValidationError(
+                "Provide either email or mobile, not both."
+            )
+
+        if not password and not otp:
+            raise serializers.ValidationError("Password or OTP is required.")
+
+        if password and otp:
+            raise serializers.ValidationError(
+                "Provide either password or OTP, not both."
+            )
+
+        # ---------- FIND USER ----------
+        try:
+            if email:
+                user = CustomUser.objects.get(email=email)
+            else:
+                user = CustomUser.objects.get(mobile=mobile)
+        except CustomUser.DoesNotExist:
+            raise serializers.ValidationError("User not found.")
+
+        # ---------- PASSWORD LOGIN ----------
+        if password:
+            if not user.has_usable_password():
+                raise serializers.ValidationError(
+                    "Password login is not enabled for this account or Incorrect ."
+                )
+
+            user = authenticate(email=user.email, password=password)
+            if not user:
+                raise serializers.ValidationError("Invalid credentials.")
+
+        # ---------- OTP LOGIN ----------
+        if otp:
+            otp_filter = {
+                "purpose": OTP.LOGIN,
+                "is_used": False,
+            }
+
+            if email:
+                otp_filter["email"] = email
+            else:
+                otp_filter["mobile"] = mobile
+
+            otp_obj = OTP.objects.filter(**otp_filter).order_by("-created_at").first()
+
+            if not otp_obj:
+                raise serializers.ValidationError("Invalid OTP.")
+
+            if otp_obj.is_expired():
+                raise serializers.ValidationError("OTP expired.")
+
+            if not check_password(otp, otp_obj.otp):
+                raise serializers.ValidationError("Invalid OTP.")
+
+            otp_obj.is_used = True
+            otp_obj.save()
+
+        data["user"] = user
+        return data
+
+    def create(self, validated_data):
+        user = validated_data["user"]
+
+        refresh = RefreshToken.for_user(user)
+
+        return {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "user_id": user.id,
+            "email": user.email,
+            "mobile": user.mobile,
+            "role": user.role,
+        }
 
 
 """

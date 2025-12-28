@@ -51,6 +51,16 @@ class CustomUser(AbstractUser):
 
 
 class OTP(models.Model):
+
+    REGISTRATION = "registration"
+    LOGIN = "login"
+    PASSWORD_RESET = "password_reset"
+
+    PURPOSE_CHOICES = (
+        (REGISTRATION, "Registration"),
+        (LOGIN, "Login"),
+        (PASSWORD_RESET, "Password Reset"),
+    )
     EMAIL = "email"
     SMS = "sms"
 
@@ -65,7 +75,11 @@ class OTP(models.Model):
     otp_via = models.CharField(max_length=10, choices=OTP_VIA, default=EMAIL)
     otp = models.CharField(max_length=128)
 
-    purpose = models.CharField(max_length=30, default="registration")
+    purpose = models.CharField(
+        max_length=30,
+        choices=PURPOSE_CHOICES,
+        default=REGISTRATION,
+    )
     is_used = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)

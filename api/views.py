@@ -3,6 +3,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import viewsets, permissions
 from django.db.models import Q
+from rest_framework.permissions import AllowAny
+
 from rest_framework.reverse import reverse
 from django.contrib.auth.models import User
 from rest_framework.viewsets import ModelViewSet
@@ -32,6 +34,7 @@ from .serializers import (
     UserSerializer,
     SendOTPSerializer,
     VerifyOTPAndRegisterSerializer,
+    LoginSerializer,
 )
 
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
@@ -394,6 +397,17 @@ class UserRegisterView(generics.CreateAPIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class LoginView(generics.CreateAPIView):
+    serializer_class = LoginSerializer
+    permission_classes = [AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.save()
+        return Response(data, status=status.HTTP_200_OK)
 
 
 @api_view(["GET"])
