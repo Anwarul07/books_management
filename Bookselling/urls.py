@@ -14,6 +14,8 @@ from api.views import (
     LogoutView,
     LogoutAllView,
     SendLoginOTPView,
+    SendPasswordUpdateOTPView,
+    UpdatePasswordConfirmView,
 )
 from django.conf import settings
 from django.conf.urls.static import static
@@ -23,14 +25,16 @@ urlpatterns = [
     path("api/", include("api.urls")),
     path("", home, name="home"),
     path("status/", stats, name="status"),
-    path("sendotp/", SendOTPView.as_view(), name="sendotp"),
-    path("register/", UserRegisterView.as_view(), name="register"),
+    path("register/sendotp/", SendOTPView.as_view(), name="sendotp"),
+    path("register-user/", UserRegisterView.as_view(), name="register"),
     path("login/sendotp/", SendLoginOTPView.as_view(), name="login-send-otp"),
-    path("login/", LoginView.as_view(), name="login"),
-    path("logout/", LogoutView.as_view(), name="logout"),
+    path("login-user/", LoginView.as_view(), name="login"),
+    path("logout-user/", LogoutView.as_view(), name="logout"),
     path("logoutall/", LogoutAllView.as_view(), name="logoutall"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
+    path("password-update/otp/", SendPasswordUpdateOTPView.as_view()),
+    path("password-update/confirm/", UpdatePasswordConfirmView.as_view()),
 ]
 
 

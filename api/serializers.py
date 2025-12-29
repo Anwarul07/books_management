@@ -536,9 +536,14 @@ class UserSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         request = self.context.get("request")
+        user = self.context.get("request").user
 
         password = validated_data.pop("password", None)
         if password:
+            if not user or not user.is_superuser:
+                raise serializers.ValidationError(
+                    "Password can only be changed by admin or via OTP-based flow."
+                )
             instance.set_password(password)
 
         role = validated_data.pop("role", None)
@@ -631,12 +636,14 @@ class SendOTPSerializer(serializers.Serializer):
         expiry_time = get_expiry_time()  # now + 5 minutes
 
         otp = OTP.objects.create(
+            user=None,  # 👈 IMPORTANT: registration me user NULL hi rahega
             email=email,
             mobile=mobile,
             otp_via=otp_via,
             otp=hashed_otp,
-            expires_at=expiry_time,
+            expires_at=get_expiry_time(),
             purpose=OTP.REGISTRATION,
+            attempts=0,
         )
 
         # 🔔 send OTP
@@ -673,8 +680,9 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
         # 🔍 find latest OTP (regardless of medium)
 
         filters = {
-            "is_used": False,
             "purpose": OTP.REGISTRATION,
+            "is_used": False,
+            "user__isnull": True,
         }
 
         if data.get("email"):
@@ -689,6 +697,8 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
         if not otp_obj:
             raise serializers.ValidationError("Invalid OTP")
 
+        if otp_obj.attempts >= 5:
+            raise serializers.ValidationError("OTP blocked. Please request a new OTP.")
         # 🔒 medium mismatch check
         if otp_obj.email and not data.get("email"):
             raise serializers.ValidationError(
@@ -715,6 +725,8 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError("OTP expired")
 
         if not check_password(data["otp"], otp_obj.otp):
+            otp_obj.attempts += 1
+            otp_obj.save(update_fields=["attempts"])
             raise serializers.ValidationError("Invalid OTP")
 
         data["otp_obj"] = otp_obj
@@ -728,7 +740,7 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
 
         # OTP consume
         otp_obj.is_used = True
-        otp_obj.save()
+        otp_obj.save(update_fields=["is_used"])
         user = CustomUser.objects.create_user(
             password=password,
             role=role,
@@ -947,6 +959,97 @@ class LogoutAllSerializer(serializers.Serializer):
 
         for token in tokens:
             BlacklistedToken.objects.get_or_create(token=token)
+
+
+class SendPasswordUpdateOTPSerializer(serializers.Serializer):
+    otp_via = serializers.ChoiceField(choices=[OTP.EMAIL, OTP.SMS], default=OTP.EMAIL)
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+
+        otp_code = generate_otp()
+
+        # 🔥 Purane unused OTP hata do (same purpose)
+        OTP.objects.filter(
+            email=user.email,
+            purpose=OTP.PASSWORD_RESET,
+            is_used=False,
+        ).delete()
+
+        otp = OTP.objects.create(
+            email=user.email,
+            mobile=user.mobile,
+            otp_via=validated_data["otp_via"],
+            otp=make_password(otp_code),
+            expires_at=get_expiry_time(),
+            purpose=OTP.PASSWORD_RESET,
+        )
+
+        if validated_data["otp_via"] == OTP.EMAIL:
+            send_email_otp(user.email, otp_code)
+        else:
+            send_sms_otp(user.mobile, otp_code)
+
+        return otp
+
+
+from rest_framework_simplejwt.tokens import RefreshToken
+
+
+class VerifyOTPAndUpdatePasswordSerializer(serializers.Serializer):
+    otp = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+    refresh = serializers.CharField(write_only=True, required=False)
+
+    def validate(self, data):
+        request = self.context.get("request")
+        user = request.user
+
+        otp_obj = (
+            OTP.objects.filter(
+                email=user.email,
+                is_used=False,
+                purpose=OTP.PASSWORD_RESET,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not otp_obj:
+            raise serializers.ValidationError("OTP not found")
+
+        if otp_obj.is_expired():
+            raise serializers.ValidationError("OTP expired")
+
+        if not check_password(data["otp"], otp_obj.otp):
+            raise serializers.ValidationError("Invalid OTP")
+
+        data["otp_obj"] = otp_obj
+        return data
+
+    def save(self):
+        request = self.context.get("request")
+        user = request.user
+        otp_obj = self.validated_data["otp_obj"]
+
+        # 🔐 PASSWORD UPDATE
+        user.set_password(self.validated_data["new_password"])
+        user.save()
+
+        # 🔒 OTP CONSUME
+        otp_obj.is_used = True
+        otp_obj.save()
+
+        # 🚫 JWT INVALIDATE
+        refresh_token = self.validated_data.get("refresh")
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except Exception:
+                pass  # invalid / already blacklisted token
+
+        return user
 
 
 """

@@ -38,6 +38,8 @@ from .serializers import (
     LogoutSerializer,
     LogoutAllSerializer,
     SendLoginOTPSerializer,
+    SendPasswordUpdateOTPSerializer,
+    VerifyOTPAndUpdatePasswordSerializer,
 )
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import TokenAuthentication
@@ -292,10 +294,25 @@ class UserView(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrAuthorOrBuyerOnly]
 
     def get_serializer_class(self):
+        request = self.request
+        user = request.user
         if self.request.method == "POST":
             if self.request.user.is_authenticated and self.request.user.is_superuser:
                 return UserSerializer
             return VerifyOTPAndRegisterSerializer
+
+        if self.request.method in ["PUT", "PATCH"]:
+            # Admin → direct serializer
+            if user.is_superuser or user.role == CustomUser.ADMIN:
+                return UserSerializer
+
+            # Non-admin password update → OTP serializer
+            if "password" in request.data:
+                return VerifyOTPAndUpdatePasswordSerializer
+
+            # Non-admin profile update
+            return UserSerializer
+
         return UserSerializer
 
     def perform_create(self, serializer):
@@ -316,6 +333,7 @@ class UserView(viewsets.ModelViewSet):
         if user.is_superuser or user.role == "admin":
             serializer.save()
             return
+
 
         #  ---------- AUTHOR / BASIC USER (SELF ONLY) ----------
         if user.id == target.id:
@@ -473,6 +491,48 @@ class LogoutAllView(generics.CreateAPIView):
 
         return Response(
             {"message": "Logged out from all devices"}, status=status.HTTP_200_OK
+        )
+
+
+class SendPasswordUpdateOTPView(generics.CreateAPIView):
+    serializer_class = SendPasswordUpdateOTPSerializer
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        otp = serializer.save()
+
+        return Response(
+            {
+                "message": "OTP sent successfully for password update",
+                "expires_at": otp.expires_at,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class UpdatePasswordConfirmView(generics.CreateAPIView):
+    serializer_class = VerifyOTPAndUpdatePasswordSerializer
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {
+                "message": "Password updated successfully. Please login again.",
+                "relogin_required": True,
+            },
+            status=status.HTTP_200_OK,
         )
 
 
