@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import viewsets, permissions
 from django.db.models import Q
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from rest_framework.reverse import reverse
 from django.contrib.auth.models import User
@@ -18,7 +18,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from .otp import *
 from rest_framework import generics, status
-from rest_framework import status
+from django.contrib.auth import logout
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
@@ -35,9 +35,12 @@ from .serializers import (
     SendOTPSerializer,
     VerifyOTPAndRegisterSerializer,
     LoginSerializer,
+    LogoutSerializer,
+    LogoutAllSerializer,
+    SendLoginOTPSerializer,
 )
-
-from rest_framework.authentication import SessionAuthentication, TokenAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.authentication import TokenAuthentication
 from .permissions import (
     IsAdminOrAuthorOrReadOnly,
     IsAdminOrAuthorSpecificOrReadOnly,
@@ -54,7 +57,7 @@ class BooksView(viewsets.ModelViewSet):
 
     queryset = Books.objects.all()
     serializer_class = BooksCreateSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrAuthorOrReadOnly]
 
     def perform_create(self, serializer):
@@ -96,7 +99,7 @@ class AuthorView(viewsets.ModelViewSet):
 
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrAuthorSpecificOrReadOnly]
 
     def perform_create(self, serializer):
@@ -131,7 +134,7 @@ class AuthorView(viewsets.ModelViewSet):
 class AuthorSelfView(viewsets.ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrAuthorOnly]
 
     def get_queryset(self):
@@ -183,7 +186,7 @@ class CategoryView(viewsets.ModelViewSet):
 
     queryset = Category.objects.all()
     serializer_class = CategoryCreateSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrReadOnly]
 
     # filter_backends = [DjangoFilterBackend]
@@ -195,7 +198,7 @@ class CartItemView(viewsets.ModelViewSet):
 
     serializer_class = CartItemSerializer
     qeuryset = CartItem.objects.all()
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrBuyerOnly]
 
     def get_queryset(self):
@@ -237,8 +240,12 @@ class CartView(viewsets.ModelViewSet):
 
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrBuyerOnly]
+
+    def get(self, request, *args, **kwargs):
+        print("AUTH:", request.auth)
+        print("USER:", request.user)
 
     def get_queryset(self):
         user = self.request.user
@@ -281,7 +288,7 @@ class UserView(viewsets.ModelViewSet):
 
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrAuthorOrBuyerOnly]
 
     def get_serializer_class(self):
@@ -399,6 +406,31 @@ class UserRegisterView(generics.CreateAPIView):
         )
 
 
+class SendLoginOTPView(generics.CreateAPIView):
+    """
+    Send OTP for login via Email or Mobile
+    """
+
+    serializer_class = SendLoginOTPSerializer
+    permission_classes = [AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        otp = serializer.save()
+
+        return Response(
+            {
+                "message": "OTP sent successfully for login.",
+                "otp_via": otp.otp_via,
+                "email": otp.email,
+                "mobile": otp.mobile,
+                "expires_at": otp.expires_at,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class LoginView(generics.CreateAPIView):
     serializer_class = LoginSerializer
     permission_classes = [AllowAny]
@@ -408,6 +440,40 @@ class LoginView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.save()
         return Response(data, status=status.HTTP_200_OK)
+
+
+class LogoutView(generics.CreateAPIView):
+    serializer_class = LogoutSerializer
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        logout(request)
+        return Response(
+            {"message": "Logged out successfully"}, status=status.HTTP_200_OK
+        )
+
+
+from rest_framework import generics, status
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
+
+class LogoutAllView(generics.CreateAPIView):
+    serializer_class = LogoutAllSerializer
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data={}, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        logout(request)
+
+        return Response(
+            {"message": "Logged out from all devices"}, status=status.HTTP_200_OK
+        )
 
 
 @api_view(["GET"])

@@ -11,6 +11,11 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.hashers import check_password
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.token_blacklist.models import (
+    OutstandingToken,
+    BlacklistedToken,
+)
 
 User = get_user_model()
 
@@ -755,6 +760,71 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
     # return user
 
 
+# from django.contrib.auth import authenticate
+# from django.contrib.auth.hashers import check_password
+# from rest_framework import serializers
+# from rest_framework_simplejwt.tokens import RefreshToken
+
+
+class SendLoginOTPSerializer(serializers.Serializer):
+    otp_via = serializers.ChoiceField(choices=[OTP.EMAIL, OTP.SMS])
+    email = serializers.EmailField(required=False)
+    mobile = serializers.CharField(required=False)
+
+    def validate(self, data):
+        if data["otp_via"] == OTP.EMAIL and not data.get("email"):
+            raise serializers.ValidationError("Email required.")
+
+        if data["otp_via"] == OTP.SMS and not data.get("mobile"):
+            raise serializers.ValidationError("Mobile required.")
+
+        # User must exist
+        if (
+            data.get("email")
+            and not CustomUser.objects.filter(email=data["email"]).exists()
+        ):
+            raise serializers.ValidationError("User not registered.")
+
+        if (
+            data.get("mobile")
+            and not CustomUser.objects.filter(mobile=data["mobile"]).exists()
+        ):
+            raise serializers.ValidationError("User not registered.")
+
+        return data
+
+    def create(self, validated_data):
+        email = validated_data.get("email")
+        mobile = validated_data.get("mobile")
+        otp_via = validated_data["otp_via"]
+
+        # Delete old unused login OTPs
+        OTP.objects.filter(
+            email=email, mobile=mobile, purpose=OTP.LOGIN, is_used=False
+        ).delete()
+
+        otp_code = generate_otp()
+        hashed_otp = make_password(otp_code)
+        expiry_time = get_expiry_time()
+
+        otp = OTP.objects.create(
+            email=email,
+            mobile=mobile,
+            otp_via=otp_via,
+            otp=hashed_otp,
+            expires_at=expiry_time,
+            purpose=OTP.LOGIN,
+        )
+
+        # SEND OTP
+        if otp_via == OTP.EMAIL:
+            send_email_otp(email, otp_code)
+        else:
+            send_sms_otp(mobile, otp_code)
+
+        return otp
+
+
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False)
     mobile = serializers.CharField(required=False)
@@ -793,11 +863,14 @@ class LoginSerializer(serializers.Serializer):
         except CustomUser.DoesNotExist:
             raise serializers.ValidationError("User not found.")
 
+        if not user.is_active:
+            raise serializers.ValidationError("Account is disabled.")
+
         # ---------- PASSWORD LOGIN ----------
         if password:
             if not user.has_usable_password():
                 raise serializers.ValidationError(
-                    "Password login is not enabled for this account or Incorrect ."
+                    "Password login is not enabled for this account."
                 )
 
             user = authenticate(email=user.email, password=password)
@@ -827,8 +900,12 @@ class LoginSerializer(serializers.Serializer):
             if not check_password(otp, otp_obj.otp):
                 raise serializers.ValidationError("Invalid OTP.")
 
-            otp_obj.is_used = True
-            otp_obj.save()
+            updated = OTP.objects.filter(id=otp_obj.id, is_used=False).update(
+                is_used=True
+            )
+
+            if updated == 0:
+                raise serializers.ValidationError("OTP already used.")
 
         data["user"] = user
         return data
@@ -846,6 +923,30 @@ class LoginSerializer(serializers.Serializer):
             "mobile": user.mobile,
             "role": user.role,
         }
+
+
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+    def save(self, **kwargs):
+        try:
+            token = RefreshToken(self.validated_data["refresh"])
+            token.blacklist()
+        except TokenError:
+            raise serializers.ValidationError("Invalid or expired refresh token")
+
+
+class LogoutAllSerializer(serializers.Serializer):
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+
+        tokens = OutstandingToken.objects.filter(user=user).exclude(
+            blacklistedtoken__isnull=False
+        )
+
+        for token in tokens:
+            BlacklistedToken.objects.get_or_create(token=token)
 
 
 """

@@ -43,8 +43,10 @@ class IsAdminOrAuthorSpecificOrReadOnly(BasePermission):
         if user.role == "admin" or user.is_superuser:
             return True
         if user.role == "author" and not user.is_superuser:
-            if request.method in ["PUT", "POST", "PATCH", "DELETE", "GET"]:
-                return True
+            return True
+            # if request.method in ["PUT", "POST", "PATCH", "DELETE", "GET"]:
+            #     return True
+        
 
     def has_object_permission(self, request, view, obj):
         user = request.user
