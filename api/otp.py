@@ -1,3 +1,5 @@
+from rest_framework import serializers
+from .models import OTP
 import random
 from datetime import timedelta
 
@@ -10,6 +12,7 @@ from django.utils.html import strip_tags
 from twilio.rest import Client
 
 
+OTP_RESEND_COOLDOWN = 120  # seconds (2 minutes)
 OTP_EXPIRY_MINUTES = 5
 
 
@@ -60,3 +63,15 @@ def send_sms_otp(mobile, otp):
         from_=settings.TWILIO_PHONE_NUMBER,
         to=f"+91{mobile}",
     )
+
+
+# def check_otp_resend_cooldown(filters):
+#     last_otp = OTP.objects.filter(**filters).order_by("-created_at").first()
+
+#     if last_otp:
+#         diff = (timezone.now() - last_otp.created_at).total_seconds()
+#         if diff < settings.OTP_RESEND_COOLDOWN:
+#             remaining = int(settings.OTP_RESEND_COOLDOWN - diff)
+#             raise serializers.ValidationError(
+#                 f"Please wait {remaining} seconds before resending OTP."
+#             )

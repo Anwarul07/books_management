@@ -1,4 +1,5 @@
 from .otp import *
+from .otp import check_otp_resend_cooldown
 from decimal import Decimal
 from django.db.models import F
 from .models import CustomUser
@@ -972,26 +973,30 @@ class SendPasswordUpdateOTPSerializer(serializers.Serializer):
     otp_via = serializers.ChoiceField(choices=[OTP.EMAIL, OTP.SMS], default=OTP.EMAIL)
 
     def create(self, validated_data):
-        user = self.context["request"].user
+        request = self.context["request"]
+        user = request.user
 
-        otp_code = generate_otp()
-
-        # 🔥 Purane unused OTP hata do (same purpose)
+        # 🔥 delete old unused PASSWORD_UPDATE OTPs for this user
         OTP.objects.filter(
-            email=user.email,
-            purpose=OTP.PASSWORD_RESET,
+            user=user,
+            purpose=OTP.PASSWORD_UPDATE,
             is_used=False,
         ).delete()
 
+        otp_code = generate_otp()
+
         otp = OTP.objects.create(
+            user=user,  # 👈 IMPORTANT
             email=user.email,
             mobile=user.mobile,
             otp_via=validated_data["otp_via"],
             otp=make_password(otp_code),
             expires_at=get_expiry_time(),
-            purpose=OTP.PASSWORD_RESET,
+            purpose=OTP.PASSWORD_UPDATE,  # 👈 FIXED
+            attempts=0,
         )
 
+        # 🔔 send OTP
         if validated_data["otp_via"] == OTP.EMAIL:
             send_email_otp(user.email, otp_code)
         else:
@@ -1014,9 +1019,9 @@ class VerifyOTPAndUpdatePasswordSerializer(serializers.Serializer):
 
         otp_obj = (
             OTP.objects.filter(
-                email=user.email,
+                user=user,  # 👈 FIX
+                purpose=OTP.PASSWORD_UPDATE,  # 👈 FIX
                 is_used=False,
-                purpose=OTP.PASSWORD_RESET,
             )
             .order_by("-created_at")
             .first()
@@ -1027,8 +1032,12 @@ class VerifyOTPAndUpdatePasswordSerializer(serializers.Serializer):
 
         if otp_obj.is_expired():
             raise serializers.ValidationError("OTP expired")
+        if otp_obj.attempts >= 5:
+            raise serializers.ValidationError("OTP blocked. Please request a new OTP.")
 
         if not check_password(data["otp"], otp_obj.otp):
+            otp_obj.attempts += 1
+            otp_obj.save(update_fields=["attempts"])
             raise serializers.ValidationError("Invalid OTP")
 
         data["otp_obj"] = otp_obj
@@ -1041,11 +1050,11 @@ class VerifyOTPAndUpdatePasswordSerializer(serializers.Serializer):
 
         # 🔐 PASSWORD UPDATE
         user.set_password(self.validated_data["new_password"])
-        user.save()
+        user.save(update_fields=["password"])
 
         # 🔒 OTP CONSUME
         otp_obj.is_used = True
-        otp_obj.save()
+        otp_obj.save(update_fields=["is_used"])
 
         # 🚫 JWT INVALIDATE
         refresh_token = self.validated_data.get("refresh")
@@ -1057,6 +1066,228 @@ class VerifyOTPAndUpdatePasswordSerializer(serializers.Serializer):
                 pass  # invalid / already blacklisted token
 
         return user
+
+
+class SendForgetPasswordOTPSerializer(serializers.Serializer):
+    otp_via = serializers.ChoiceField(choices=[OTP.EMAIL, OTP.SMS], default=OTP.EMAIL)
+    email = serializers.EmailField(required=False)
+    mobile = serializers.CharField(required=False)
+
+    def validate(self, data):
+
+        check_otp_resend_cooldown(
+            {
+                "user": user,
+                "purpose": OTP.PASSWORD_RESET,
+            }
+        )
+        if data["otp_via"] == OTP.EMAIL and not data.get("email"):
+            raise serializers.ValidationError("Email required")
+
+        if data["otp_via"] == OTP.SMS and not data.get("mobile"):
+            raise serializers.ValidationError("Mobile required")
+
+        # 👤 user must exist
+        user = (
+            CustomUser.objects.filter(email=data.get("email")).first()
+            if data.get("email")
+            else CustomUser.objects.filter(mobile=data.get("mobile")).first()
+        )
+
+        if not user:
+            raise serializers.ValidationError("User not found")
+
+        if not user.is_active:
+            raise serializers.ValidationError("Account is disabled")
+
+        data["user"] = user
+        return data
+
+    def create(self, validated_data):
+        user = validated_data["user"]
+        otp_via = validated_data["otp_via"]
+
+        # 🔥 delete old unused PASSWORD_RESET OTPs
+        OTP.objects.filter(
+            user=user,
+            purpose=OTP.PASSWORD_RESET,
+            is_used=False,
+        ).delete()
+
+        otp_code = generate_otp()
+
+        otp = OTP.objects.create(
+            user=user,
+            email=user.email,
+            mobile=user.mobile,
+            otp_via=otp_via,
+            otp=make_password(otp_code),
+            expires_at=get_expiry_time(),
+            purpose=OTP.PASSWORD_RESET,
+            attempts=0,
+        )
+
+        if otp_via == OTP.EMAIL:
+            send_email_otp(user.email, otp_code)
+        else:
+            send_sms_otp(user.mobile, otp_code)
+
+        return otp
+
+
+class VerifyOTPAndResetPasswordSerializer(serializers.Serializer):
+    otp = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        otp_obj = (
+            OTP.objects.filter(
+                purpose=OTP.PASSWORD_RESET,
+                is_used=False,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not otp_obj:
+            raise serializers.ValidationError("OTP not found")
+
+        if otp_obj.is_expired():
+            raise serializers.ValidationError("OTP expired")
+
+        if otp_obj.attempts >= 5:
+            raise serializers.ValidationError("OTP blocked. Please request a new OTP.")
+
+        if not check_password(data["otp"], otp_obj.otp):
+            otp_obj.attempts += 1
+            otp_obj.save(update_fields=["attempts"])
+            raise serializers.ValidationError("Invalid OTP")
+
+        data["otp_obj"] = otp_obj
+        return data
+
+    def save(self):
+        otp_obj = self.validated_data["otp_obj"]
+        user = otp_obj.user
+
+        # 🔐 reset password
+        user.set_password(self.validated_data["new_password"])
+        user.save(update_fields=["password"])
+
+        # 🔒 consume OTP
+        otp_obj.is_used = True
+        otp_obj.save(update_fields=["is_used"])
+
+        # 🚫 logout all devices
+        tokens = OutstandingToken.objects.filter(user=user).exclude(
+            blacklistedtoken__isnull=False
+        )
+        for token in tokens:
+            BlacklistedToken.objects.get_or_create(token=token)
+
+        return user
+
+
+class SendUserDeleteOTPSerializer(serializers.Serializer):
+    otp_via = serializers.ChoiceField(choices=[OTP.EMAIL, OTP.SMS], default=OTP.EMAIL)
+
+    def create(self, validated_data):
+        request = self.context["request"]
+        user = request.user
+
+        check_otp_resend_cooldown(
+            {
+                "user": user,
+                "purpose": OTP.USER_DELETE,
+            }
+        )
+        # 🔥 delete old unused delete OTPs
+        OTP.objects.filter(
+            user=user,
+            purpose=OTP.USER_DELETE,
+            is_used=False,
+        ).delete()
+
+        otp_code = generate_otp()
+
+        otp = OTP.objects.create(
+            user=user,
+            email=user.email,
+            mobile=user.mobile,
+            otp_via=validated_data["otp_via"],
+            otp=make_password(otp_code),
+            expires_at=get_expiry_time(),
+            purpose=OTP.USER_DELETE,
+            attempts=0,
+        )
+
+        if validated_data["otp_via"] == OTP.EMAIL:
+            send_email_otp(user.email, otp_code)
+        else:
+            send_sms_otp(user.mobile, otp_code)
+
+        return otp
+
+
+class VerifyOTPAndDeleteUserSerializer(serializers.Serializer):
+    otp = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        request = self.context["request"]
+        user = request.user
+
+        otp_obj = (
+            OTP.objects.filter(
+                user=user,
+                purpose=OTP.USER_DELETE,
+                is_used=False,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not otp_obj:
+            raise serializers.ValidationError("OTP not found")
+
+        if otp_obj.is_expired():
+            raise serializers.ValidationError("OTP expired")
+
+        if otp_obj.attempts >= 5:
+            raise serializers.ValidationError("OTP blocked. Please request a new OTP.")
+
+        if not check_password(data["otp"], otp_obj.otp):
+            otp_obj.attempts += 1
+            otp_obj.save(update_fields=["attempts"])
+            raise serializers.ValidationError("Invalid OTP")
+
+        data["otp_obj"] = otp_obj
+        return data
+
+    def save(self):
+        request = self.context["request"]
+        user = request.user
+        otp_obj = self.validated_data["otp_obj"]
+
+        # 🔒 consume OTP
+        otp_obj.is_used = True
+        otp_obj.save(update_fields=["is_used"])
+
+        # 🚫 logout all devices
+        tokens = OutstandingToken.objects.filter(user=user).exclude(
+            blacklistedtoken__isnull=False
+        )
+        for token in tokens:
+            BlacklistedToken.objects.get_or_create(token=token)
+
+        # 🧨 DELETE USER
+        # ✅ RECOMMENDED: SOFT DELETE
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+
+        # ❌ OPTIONAL HARD DELETE (if you want)
+        # user.delete()
+
+        return {"detail": "User deleted"}
 
 
 """

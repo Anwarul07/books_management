@@ -40,6 +40,10 @@ from .serializers import (
     SendLoginOTPSerializer,
     SendPasswordUpdateOTPSerializer,
     VerifyOTPAndUpdatePasswordSerializer,
+    VerifyOTPAndResetPasswordSerializer,
+    SendForgetPasswordOTPSerializer,
+    SendUserDeleteOTPSerializer,
+    VerifyOTPAndDeleteUserSerializer,
 )
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import TokenAuthentication
@@ -527,6 +531,84 @@ class UpdatePasswordConfirmView(generics.CreateAPIView):
         return Response(
             {
                 "message": "Password updated successfully. Please login again.",
+                "relogin_required": True,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class SendForgetPasswordOTPView(generics.CreateAPIView):
+    serializer_class = SendForgetPasswordOTPSerializer
+    permission_classes = [AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        otp = serializer.save()
+
+        return Response(
+            {
+                "message": "OTP sent for password reset",
+                "expires_at": otp.expires_at,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ForgetPasswordConfirmView(generics.CreateAPIView):
+    serializer_class = VerifyOTPAndResetPasswordSerializer
+    permission_classes = [AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {
+                "message": "Password reset successful. Please login again.",
+                "relogin_required": True,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class SendUserDeleteOTPView(generics.CreateAPIView):
+    serializer_class = SendUserDeleteOTPSerializer
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        otp = serializer.save()
+
+        return Response(
+            {
+                "message": "OTP sent for account deletion",
+                "expires_at": otp.expires_at,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class DeleteUserConfirmView(generics.CreateAPIView):
+    serializer_class = VerifyOTPAndDeleteUserSerializer
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {
+                "message": "Account deleted successfully",
                 "relogin_required": True,
             },
             status=status.HTTP_200_OK,
