@@ -790,49 +790,48 @@ class SendLoginOTPSerializer(serializers.Serializer):
         if data["otp_via"] == OTP.SMS and not data.get("mobile"):
             raise serializers.ValidationError("Mobile required.")
 
-        # User must exist
-        if (
-            data.get("email")
-            and not CustomUser.objects.filter(email=data["email"]).exists()
-        ):
+        # 👤 User must exist
+        if data.get("email"):
+            user = CustomUser.objects.filter(email=data["email"]).first()
+        else:
+            user = CustomUser.objects.filter(mobile=data["mobile"]).first()
+
+        if not user:
             raise serializers.ValidationError("User not registered.")
 
-        if (
-            data.get("mobile")
-            and not CustomUser.objects.filter(mobile=data["mobile"]).exists()
-        ):
-            raise serializers.ValidationError("User not registered.")
-
+        data["user"] = user
         return data
 
     def create(self, validated_data):
-        email = validated_data.get("email")
-        mobile = validated_data.get("mobile")
+        user = validated_data["user"]
         otp_via = validated_data["otp_via"]
 
-        # Delete old unused login OTPs
+        # 🔥 Delete old unused LOGIN OTPs for this user
         OTP.objects.filter(
-            email=email, mobile=mobile, purpose=OTP.LOGIN, is_used=False
+            user=user,
+            purpose=OTP.LOGIN,
+            is_used=False,
         ).delete()
 
         otp_code = generate_otp()
         hashed_otp = make_password(otp_code)
-        expiry_time = get_expiry_time()
 
         otp = OTP.objects.create(
-            email=email,
-            mobile=mobile,
+            user=user,  # 👈 IMPORTANT
+            email=user.email,
+            mobile=user.mobile,
             otp_via=otp_via,
             otp=hashed_otp,
-            expires_at=expiry_time,
+            expires_at=get_expiry_time(),
             purpose=OTP.LOGIN,
+            attempts=0,
         )
 
-        # SEND OTP
+        # 🔔 SEND OTP
         if otp_via == OTP.EMAIL:
-            send_email_otp(email, otp_code)
+            send_email_otp(user.email, otp_code)
         else:
-            send_sms_otp(mobile, otp_code)
+            send_sms_otp(user.mobile, otp_code)
 
         return otp
 
@@ -867,12 +866,13 @@ class LoginSerializer(serializers.Serializer):
             )
 
         # ---------- FIND USER ----------
-        try:
-            if email:
-                user = CustomUser.objects.get(email=email)
-            else:
-                user = CustomUser.objects.get(mobile=mobile)
-        except CustomUser.DoesNotExist:
+        user = (
+            CustomUser.objects.filter(email=email).first()
+            if email
+            else CustomUser.objects.filter(mobile=mobile).first()
+        )
+
+        if not user:
             raise serializers.ValidationError("User not found.")
 
         if not user.is_active:
@@ -891,17 +891,15 @@ class LoginSerializer(serializers.Serializer):
 
         # ---------- OTP LOGIN ----------
         if otp:
-            otp_filter = {
-                "purpose": OTP.LOGIN,
-                "is_used": False,
-            }
-
-            if email:
-                otp_filter["email"] = email
-            else:
-                otp_filter["mobile"] = mobile
-
-            otp_obj = OTP.objects.filter(**otp_filter).order_by("-created_at").first()
+            otp_obj = (
+                OTP.objects.filter(
+                    user=user,
+                    purpose=OTP.LOGIN,
+                    is_used=False,
+                )
+                .order_by("-created_at")
+                .first()
+            )
 
             if not otp_obj:
                 raise serializers.ValidationError("Invalid OTP.")
@@ -909,15 +907,19 @@ class LoginSerializer(serializers.Serializer):
             if otp_obj.is_expired():
                 raise serializers.ValidationError("OTP expired.")
 
+            if otp_obj.attempts >= 5:
+                raise serializers.ValidationError(
+                    "OTP blocked. Please request a new OTP."
+                )
+
             if not check_password(otp, otp_obj.otp):
+                otp_obj.attempts += 1
+                otp_obj.save(update_fields=["attempts"])
                 raise serializers.ValidationError("Invalid OTP.")
 
-            updated = OTP.objects.filter(id=otp_obj.id, is_used=False).update(
-                is_used=True
-            )
-
-            if updated == 0:
-                raise serializers.ValidationError("OTP already used.")
+            # 🔒 consume OTP
+            otp_obj.is_used = True
+            otp_obj.save(update_fields=["is_used"])
 
         data["user"] = user
         return data
@@ -952,6 +954,10 @@ class LogoutAllSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         user = self.context["request"].user
+        request = self.context.get("request")
+
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication required.")
 
         tokens = OutstandingToken.objects.filter(user=user).exclude(
             blacklistedtoken__isnull=False
@@ -959,6 +965,7 @@ class LogoutAllSerializer(serializers.Serializer):
 
         for token in tokens:
             BlacklistedToken.objects.get_or_create(token=token)
+        return {"detail": "Logged out from all devices"}
 
 
 class SendPasswordUpdateOTPSerializer(serializers.Serializer):

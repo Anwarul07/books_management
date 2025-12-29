@@ -334,7 +334,6 @@ class UserView(viewsets.ModelViewSet):
             serializer.save()
             return
 
-
         #  ---------- AUTHOR / BASIC USER (SELF ONLY) ----------
         if user.id == target.id:
             serializer.save(
@@ -439,8 +438,8 @@ class SendLoginOTPView(generics.CreateAPIView):
 
         return Response(
             {
-                "message": "OTP sent successfully for login.",
                 "otp_via": otp.otp_via,
+                "message": f"OTP sent successfully for {otp.otp_via} login.",
                 "email": otp.email,
                 "mobile": otp.mobile,
                 "expires_at": otp.expires_at,
@@ -468,7 +467,6 @@ class LogoutView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        logout(request)
         return Response(
             {"message": "Logged out successfully"}, status=status.HTTP_200_OK
         )
@@ -487,7 +485,6 @@ class LogoutAllView(generics.CreateAPIView):
         serializer = self.get_serializer(data={}, context={"request": request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        logout(request)
 
         return Response(
             {"message": "Logged out from all devices"}, status=status.HTTP_200_OK
