@@ -65,13 +65,12 @@ def send_sms_otp(mobile, otp):
     )
 
 
-# def check_otp_resend_cooldown(filters):
-#     last_otp = OTP.objects.filter(**filters).order_by("-created_at").first()
-
-#     if last_otp:
-#         diff = (timezone.now() - last_otp.created_at).total_seconds()
-#         if diff < settings.OTP_RESEND_COOLDOWN:
-#             remaining = int(settings.OTP_RESEND_COOLDOWN - diff)
-#             raise serializers.ValidationError(
-#                 f"Please wait {remaining} seconds before resending OTP."
-#             )
+def check_otp_resend_cooldown(filters):
+    last_otp = OTP.objects.filter(**filters).order_by("-created_at").first()
+    if last_otp:
+        diff = (timezone.now() - last_otp.created_at).total_seconds()
+        if diff < settings.OTP_RESEND_COOLDOWN:
+            remaining = int(settings.OTP_RESEND_COOLDOWN - diff)
+            raise serializers.ValidationError(
+                f"Please wait {remaining} seconds before resending OTP."
+            )

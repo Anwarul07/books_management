@@ -45,8 +45,10 @@ from .serializers import (
     SendUserDeleteOTPSerializer,
     VerifyOTPAndDeleteUserSerializer,
 )
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.authentication import TokenAuthentication
+from rest_framework_simplejwt.authentication import (
+    JWTAuthentication,
+)
+from rest_framework.authentication import SessionAuthentication
 from .permissions import (
     IsAdminOrAuthorOrReadOnly,
     IsAdminOrAuthorSpecificOrReadOnly,
@@ -63,7 +65,7 @@ class BooksView(viewsets.ModelViewSet):
 
     queryset = Books.objects.all()
     serializer_class = BooksCreateSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrAuthorOrReadOnly]
 
     def perform_create(self, serializer):
@@ -73,7 +75,9 @@ class BooksView(viewsets.ModelViewSet):
                 raise PermissionDenied(
                     "You are not verified. Verified authors only can create books."
                 )
-            serializer.save(author=user.author_profile, availability="pending")
+            serializer.save(
+                author=user.author_profile, availability="pending",
+            )
         else:
             serializer.save()
 
@@ -92,7 +96,7 @@ class BooksView(viewsets.ModelViewSet):
         else:
             serializer.save()
 
-    # def get_object(self
+    # def get_object(self)
     #     obj = super().get_object()
     #     print(obj)
     #     if obj.author != self.request.user:
@@ -105,7 +109,7 @@ class AuthorView(viewsets.ModelViewSet):
 
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrAuthorSpecificOrReadOnly]
 
     def perform_create(self, serializer):
@@ -140,7 +144,7 @@ class AuthorView(viewsets.ModelViewSet):
 class AuthorSelfView(viewsets.ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrAuthorOnly]
 
     def get_queryset(self):
@@ -192,7 +196,7 @@ class CategoryView(viewsets.ModelViewSet):
 
     queryset = Category.objects.all()
     serializer_class = CategoryCreateSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrReadOnly]
 
     # filter_backends = [DjangoFilterBackend]
@@ -204,7 +208,7 @@ class CartItemView(viewsets.ModelViewSet):
 
     serializer_class = CartItemSerializer
     qeuryset = CartItem.objects.all()
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrBuyerOnly]
 
     def get_queryset(self):
@@ -246,7 +250,7 @@ class CartView(viewsets.ModelViewSet):
 
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrBuyerOnly]
 
     def get(self, request, *args, **kwargs):
@@ -294,7 +298,7 @@ class UserView(viewsets.ModelViewSet):
 
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrAuthorOrBuyerOnly]
 
     def get_serializer_class(self):
@@ -370,6 +374,7 @@ class UserView(viewsets.ModelViewSet):
 class SendOTPView(generics.CreateAPIView):
     http_method_names = ["post"]
     serializer_class = SendOTPSerializer
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrAnonymousOnly]
 
     def create(self, request, *args, **kwargs):
@@ -402,6 +407,7 @@ class SendOTPView(generics.CreateAPIView):
 class UserRegisterView(generics.CreateAPIView):
     http_method_names = ["post"]
     serializer_class = VerifyOTPAndRegisterSerializer
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrAnonymousOnly]
 
     def create(self, request, *args, **kwargs):
@@ -433,6 +439,7 @@ class SendLoginOTPView(generics.CreateAPIView):
     """
 
     serializer_class = SendLoginOTPSerializer
+    authentication_classes = [SessionAuthentication]
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
@@ -465,6 +472,7 @@ class LoginView(generics.CreateAPIView):
 
 class LogoutView(generics.CreateAPIView):
     serializer_class = LogoutSerializer
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
@@ -483,6 +491,7 @@ from rest_framework.permissions import IsAuthenticated
 
 class LogoutAllView(generics.CreateAPIView):
     serializer_class = LogoutAllSerializer
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
@@ -497,7 +506,7 @@ class LogoutAllView(generics.CreateAPIView):
 
 class SendPasswordUpdateOTPView(generics.CreateAPIView):
     serializer_class = SendPasswordUpdateOTPSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
@@ -518,7 +527,7 @@ class SendPasswordUpdateOTPView(generics.CreateAPIView):
 
 class UpdatePasswordConfirmView(generics.CreateAPIView):
     serializer_class = VerifyOTPAndUpdatePasswordSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
@@ -539,6 +548,7 @@ class UpdatePasswordConfirmView(generics.CreateAPIView):
 
 class SendForgetPasswordOTPView(generics.CreateAPIView):
     serializer_class = SendForgetPasswordOTPSerializer
+    authentication_classes = [SessionAuthentication]
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
@@ -557,6 +567,7 @@ class SendForgetPasswordOTPView(generics.CreateAPIView):
 
 class ForgetPasswordConfirmView(generics.CreateAPIView):
     serializer_class = VerifyOTPAndResetPasswordSerializer
+    authentication_classes = [SessionAuthentication]
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
@@ -575,7 +586,7 @@ class ForgetPasswordConfirmView(generics.CreateAPIView):
 
 class SendUserDeleteOTPView(generics.CreateAPIView):
     serializer_class = SendUserDeleteOTPSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
@@ -596,7 +607,7 @@ class SendUserDeleteOTPView(generics.CreateAPIView):
 
 class DeleteUserConfirmView(generics.CreateAPIView):
     serializer_class = VerifyOTPAndDeleteUserSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):

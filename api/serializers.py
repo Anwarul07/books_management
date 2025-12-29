@@ -89,6 +89,7 @@ class AuthorReadSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     def get_author_name(self, obj):
+        return obj.user.username
         return obj.user.first_name + " " + obj.user.last_name
 
     def validate_user(self, value):
@@ -133,7 +134,8 @@ class BooksCreateSerializer(serializers.ModelSerializer):
         ]
 
     def get_author_name(self, obj):
-        return f"{obj.author.user.first_name} {obj.author.user.last_name}"
+        return f"{obj.author.user.username} "
+        # return f"{obj.author.user.first_name} {obj.author.user.last_name}"
 
     def get_sale_price(self, obj):
         discount_percentage = Decimal(obj.discount or 0) / Decimal(100)
@@ -149,10 +151,10 @@ class BooksCreateSerializer(serializers.ModelSerializer):
                 "The associated user must have the role 'author'."
             )
 
-        if user.role == "author" and value != user.author_profile:
-            raise serializers.ValidationError(
-                "Authors cannot change or assign the author field. Only admin can do this."
-            )
+        # if user.role == "author" and value != user.author_profile:
+        #     raise serializers.ValidationError(
+        #         "Authors cannot change or assign the author field. Only admin can do this."
+        #     )
         return value
 
     def validate_availability(self, value):
@@ -194,12 +196,19 @@ class BooksCreateSerializer(serializers.ModelSerializer):
     #     user = self.context["request"].user
     #     return user.username
 
-    # def get_fields(self):
-    #     fields = super().get_fields()
-    #     user = self.context["request"].user
-    #     if not user.is_superuser:
-    #         fields.pop("availability")  # hide sensitive field
-    #     return fields
+    def get_fields(self):
+        fields = super().get_fields()
+
+        request = self.context.get("request")
+        if not request:
+            return fields  # serializer context me request nahi hai
+
+        user = request.user
+
+        if not user.is_superuser:
+            fields.pop("user", None)
+
+        return fields
 
 
 # ---------------- Author Create Serializer for Author details----------------
@@ -306,6 +315,20 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
 
         else:
             self.fields["user"].queryset = CustomUser.objects.filter(role="author")
+
+    def get_fields(self):
+        fields = super().get_fields()
+
+        request = self.context.get("request")
+        if not request:
+            return fields  # serializer context me request nahi hai
+
+        user = request.user
+
+        if not user.is_superuser:
+            fields.pop("user", None)
+
+        return fields
 
     # ------------------------ AGGREGATION ------------------------
 
@@ -425,6 +448,20 @@ class CartItemSerializer(serializers.ModelSerializer):
 
         return super().update(instance, validated_data)
 
+    def get_fields(self):
+        fields = super().get_fields()
+
+        request = self.context.get("request")
+        if not request:
+            return fields  # serializer context me request nahi hai
+
+        user = request.user
+
+        if not user.is_superuser:
+            fields.pop("user", None)
+
+        return fields
+
 
 # ---------------- Cart Create Serializer for Cart details----------------
 class CartSerializer(serializers.ModelSerializer):
@@ -461,6 +498,20 @@ class CartSerializer(serializers.ModelSerializer):
                 "Only buyer users can be assigned as cart."
             )
         return value
+
+    def get_fields(self):
+        fields = super().get_fields()
+
+        request = self.context.get("request")
+        if not request:
+            return fields  # serializer context me request nahi hai
+
+        user = request.user
+
+        if not user.is_superuser:
+            fields.pop("user", None)
+
+        return fields
 
 
 # ---------------- User Serializer for User details----------------
