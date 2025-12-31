@@ -39,11 +39,11 @@ urlpatterns = [
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
     path("password-update/otp/", SendPasswordUpdateOTPView.as_view()),
-    path("password-update/confirm/", UpdatePasswordConfirmView.as_view()),
-    path("auth/forget-password/otp/", SendForgetPasswordOTPView.as_view()),
-    path("auth/forget-password/confirm/", ForgetPasswordConfirmView.as_view()),
-    path("auth/delete-user/otp/", SendUserDeleteOTPView.as_view()),
-    path("auth/delete-user/confirm/", DeleteUserConfirmView.as_view()),
+    path("password-update/", UpdatePasswordConfirmView.as_view()),
+    path("forget-password/otp/", SendForgetPasswordOTPView.as_view()),
+    path("forget-password/", ForgetPasswordConfirmView.as_view()),
+    path("delete-user/otp/", SendUserDeleteOTPView.as_view()),
+    path("delete-user/", DeleteUserConfirmView.as_view()),
 ]
 
 
