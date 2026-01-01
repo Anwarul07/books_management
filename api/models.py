@@ -1,13 +1,14 @@
-from django.utils import timezone
-from datetime import timedelta
-from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.contrib.auth.models import User
+import uuid
 from decimal import Decimal
-from django.contrib.auth.models import AbstractUser
-from .managers import CustomUserManager
+from django.db import models
+from datetime import timedelta
 from django.conf import settings
+from django.utils import timezone
+from .managers import CustomUserManager
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.contrib.auth.models import AbstractUser
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 # ---Custom user Model ---

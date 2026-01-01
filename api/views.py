@@ -1,25 +1,25 @@
-from django.shortcuts import render
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import viewsets, permissions
+from .otp import *
 from django.db.models import Q
-from rest_framework.permissions import AllowAny, IsAuthenticated
-
+from django.shortcuts import render
+from django.contrib.auth import logout
+from rest_framework.views import APIView
 from rest_framework.reverse import reverse
 from django.contrib.auth.models import User
-from rest_framework.viewsets import ModelViewSet
-from django.shortcuts import get_object_or_404
+from rest_framework import generics, status
+from rest_framework.response import Response
+from rest_framework.response import Response
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
+from rest_framework.decorators import api_view
+from rest_framework.viewsets import ModelViewSet
+from rest_framework import viewsets, permissions
+from django.core.exceptions import PermissionDenied
+from rest_framework.exceptions import ValidationError
+from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-from django.core.exceptions import PermissionDenied
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError
-from .otp import *
-from rest_framework import generics, status
-from django.contrib.auth import logout
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import AllowAny, IsAuthenticated
+
 
 
 User = get_user_model()

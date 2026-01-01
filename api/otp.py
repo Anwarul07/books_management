@@ -1,15 +1,14 @@
-from rest_framework import serializers
-from .models import OTP
 import random
+from .models import OTP
 from datetime import timedelta
-
-from django.utils import timezone
-from django.core.mail import send_mail
-from django.conf import settings
-from django.template.loader import render_to_string
-from django.utils.html import strip_tags
-
 from twilio.rest import Client
+from django.conf import settings
+from django.utils import timezone
+from rest_framework import serializers
+from django.core.mail import send_mail
+from django.utils.html import strip_tags
+from django.template.loader import render_to_string
+
 
 
 OTP_RESEND_COOLDOWN = 120  # seconds (2 minutes)
