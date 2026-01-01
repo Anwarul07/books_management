@@ -113,10 +113,9 @@ class Category(models.Model):
         ("india", "Indian"),
         ("foreign", "Foreign"),
     ]
-
     category_name = models.CharField(max_length=50, unique=True)
     description = models.TextField(blank=True, null=True)
-
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # Images (optional)
     cover_image = models.ImageField(upload_to="category/", blank=True, null=True)
     front_image = models.ImageField(upload_to="category/", blank=True, null=True)

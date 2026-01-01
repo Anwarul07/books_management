@@ -308,10 +308,10 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
         user = request.user
 
         if not user.is_authenticated:
-            self.fields["user"].read_only = True
+            # self.fields["user"].read_only = True
             return
         if not user.is_superuser and user.role != "admin":
-            self.fields["user"].read_only = True
+            # self.fields["user"].read_only = True
             self.fields["user"].default = serializers.CurrentUserDefault()
 
         else:
@@ -355,6 +355,7 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = "__all__"
+        include_fields = ["uuid"]
 
         read_only_fields = [
             "category_of_books",
