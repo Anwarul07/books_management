@@ -33,6 +33,7 @@ from .models import (
 
 # ---------------- Books Read Serializer for assign only Book detail in any seralizers ----------------
 class BooksReadSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(format="hex", read_only=True)
     author_name = serializers.SerializerMethodField()
     category_name = serializers.StringRelatedField(source="category")
     sale_price = serializers.ReadOnlyField()
@@ -67,6 +68,7 @@ class BooksReadSerializer(serializers.ModelSerializer):
 
 # ---------------- Author Read Serializer for assign only Author detail in any seralizers ----------------
 class AuthorReadSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(format="hex", read_only=True)
     user_id = serializers.CharField(source="id", read_only=True)
     role = serializers.CharField(source="user.role", read_only=True)
     author_name = serializers.SerializerMethodField()
@@ -103,6 +105,8 @@ class AuthorReadSerializer(serializers.ModelSerializer):
 
 # ---------------- Category Read Serializer for assign only Category detail in any seralizers ----------------
 class CategoryReadSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(format="hex", read_only=True)
+
     class Meta:
         model = Category
         fields = "__all__"
@@ -110,6 +114,7 @@ class CategoryReadSerializer(serializers.ModelSerializer):
 
 # ---------------- Book Create Serializer for Book details----------------
 class BooksCreateSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(format="hex", read_only=True)
     author_details = AuthorReadSerializer(read_only=True, source="author")
     category_details = CategoryReadSerializer(read_only=True, source="category")
 
@@ -160,6 +165,8 @@ class BooksCreateSerializer(serializers.ModelSerializer):
 
     def validate_availability(self, value):
         request = self.context.get("request")
+        if not request:
+            return value
         user = request.user
 
         if not hasattr(user, "author_profile"):
@@ -207,7 +214,8 @@ class BooksCreateSerializer(serializers.ModelSerializer):
         user = request.user
 
         if not user.is_superuser:
-            fields.pop("user", None)
+            if "user" in fields:
+                fields.pop("user", None)
 
         return fields
 
@@ -215,6 +223,7 @@ class BooksCreateSerializer(serializers.ModelSerializer):
 # ---------------- Author Create Serializer for Author details----------------
 class AuthorCreateSerializer(serializers.ModelSerializer):
     # User related fields
+    id = serializers.UUIDField(format="hex", read_only=True)
     user_id = serializers.CharField(source="user.id", read_only=True)
     role = serializers.CharField(source="user.role", read_only=True)
     username = serializers.CharField(source="user.username", read_only=True)
@@ -346,6 +355,7 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
 
 # ---------------- Book Categoty Serializer for Category details----------------
 class CategoryCreateSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(format="hex", read_only=True)
     category_of_books = BooksReadSerializer(many=True, read_only=True)
 
     totalbook = serializers.SerializerMethodField()
@@ -355,7 +365,6 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = "__all__"
-        include_fields = ["uuid"]
 
         read_only_fields = [
             "category_of_books",
@@ -393,6 +402,7 @@ class CategoryCreateSerializer(serializers.ModelSerializer):
 
 # ---------------- CartItem Create Serializer for CartItem details----------------
 class CartItemSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(format="hex", read_only=True)
 
     username = serializers.CharField(source="user.username", read_only=True)
     first_name = serializers.CharField(source="user.first_name", read_only=True)
@@ -467,6 +477,8 @@ class CartItemSerializer(serializers.ModelSerializer):
 
 # ---------------- Cart Create Serializer for Cart details----------------
 class CartSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(format="hex", read_only=True)
+
     # user_id = serializers.IntegerField(source="user.id", read_only=True)
     username = serializers.CharField(source="user.username", read_only=True)
     first_name = serializers.CharField(source="user.first_name", read_only=True)
@@ -518,6 +530,8 @@ class CartSerializer(serializers.ModelSerializer):
 
 # ---------------- User Serializer for User details----------------
 class UserSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(format="hex", read_only=True)
+
     role = serializers.ChoiceField(
         choices=[
             (CustomUser.AUTHOR, "Author"),

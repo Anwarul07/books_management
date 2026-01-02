@@ -21,7 +21,6 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 
-
 User = get_user_model()
 from .models import Books, Author, Category, Cart, CartItem, CustomUser
 from rest_framework.reverse import reverse
@@ -76,7 +75,8 @@ class BooksView(viewsets.ModelViewSet):
                     "You are not verified. Verified authors only can create books."
                 )
             serializer.save(
-                author=user.author_profile, availability="pending",
+                author=user.author_profile,
+                availability="pending",
             )
         else:
             serializer.save()
@@ -198,7 +198,7 @@ class CategoryView(viewsets.ModelViewSet):
     serializer_class = CategoryCreateSerializer
     authentication_classes = [SessionAuthentication]
     permission_classes = [AllowAny]
-    # permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAdminOrReadOnly]
 
     # filter_backends = [DjangoFilterBackend]
     # filterset_class = CategoryFilter
