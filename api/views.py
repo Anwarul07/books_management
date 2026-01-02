@@ -197,6 +197,7 @@ class CategoryView(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategoryCreateSerializer
     authentication_classes = [SessionAuthentication]
+    permission_classes = [AllowAny]
     # permission_classes = [IsAdminOrReadOnly]
 
     # filter_backends = [DjangoFilterBackend]

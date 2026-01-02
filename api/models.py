@@ -27,6 +27,7 @@ class CustomUser(AbstractUser):
     mobile = models.CharField(max_length=10, unique=True)
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=BASIC_USER)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     # --- Optional Images ---
     cover_image = models.ImageField(upload_to="users/", blank=True, null=True)
@@ -83,6 +84,7 @@ class OTP(models.Model):
         related_name="otps",
     )
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(blank=True, null=True)
     mobile = models.CharField(max_length=10, blank=True, null=True)
 
@@ -142,6 +144,8 @@ class Author(models.Model):
         on_delete=models.CASCADE,
         related_name="author_profile",
     )
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     biography = models.TextField(max_length=200)
     is_verified = models.BooleanField(default=False)
     date_of_birth = models.DateField()
@@ -183,6 +187,7 @@ class Books(models.Model):
 
     # ------------ Main Fields ------------
     title = models.CharField(max_length=50, unique=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     author = models.ForeignKey(
         Author,
@@ -284,6 +289,8 @@ class CartItem(models.Model):
     books = models.ForeignKey(
         "Books", on_delete=models.CASCADE, related_name="cart_items"
     )
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     added_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -318,6 +325,7 @@ class Cart(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cart"
     )
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     def __str__(self):
         return self.user.username
