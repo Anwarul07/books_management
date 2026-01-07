@@ -705,60 +705,7 @@ def stats(request):
     return Response(stats)
 
 
-#  faltu hai abhi k liye :
 
-
-# def get_queryset(self):
-#     user = self.request.user
-
-#     if not user.is_authenticated:
-#         return CustomUser.objects.none()
-
-#     if user.role == "admin" or user.is_superuser:
-#         return CustomUser.objects.all()
-#
-#     return CustomUser.objects.filter(id=user.id)
-# http_method_names = ["get", "retrive", "update" "delete"]  # for specific
-
-
-# def perform_create(self, serializer):
-#     serializer.save(user=self.request.user)
-
-# def perform_update(self, serializer):
-#     serializer.save(user=self.request.user)
-
-
-# def perform_update(self, serializer):
-#         # User sirf apna data update kar sakta hai
-#         serializer.save(id=self.request.user.id)
-
-# def perform_destroy(self, instance):
-#         # User sirf apna record delete kar sakta hai
-#         if instance.id != self.request.user.id:
-#             raise PermissionDenied("You don't have permission to delete this user.")
-#         instance.delete()
-
-
-# def dispatch(self, request, *args, **kwargs):
-#    from django.utils import timezone
-
-
-# user = self.request.user
-#        print(
-#            {
-#                "path": request.path,
-#                "method": request.method,
-#                "user": str(user),
-#                "ip": request.META.get("REMOTE_ADDR"),
-#                "timestamp": timezone.now().isoformat(),
-#            }
-#        )
-#
-#        return super().dispatch(request, *args, **kwargs)
-#
-#    def get(self, request):
-#        return Response({"msg": "GET Called"})
-#
 
 """
 # List all Types method and Hooks
@@ -818,15 +765,3 @@ def stats(request):
 """
 
 
-# class UserMeView(generics.RetrieveUpdateAPIView):
-#     serializer_class = UserSerializer
-#     permission_classes = [IsAuthenticated]
-
-#     def get_object(self):
-#         return self.request.user
-
-
-# class AdminUserViewSet(viewsets.ModelViewSet):
-#     queryset = CustomUser.objects.all()
-#     serializer_class = UserSerializer
-#     permission_classes = [IsAdminUser]
