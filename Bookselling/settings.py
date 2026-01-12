@@ -114,6 +114,13 @@ REST_FRAMEWORK = {
 }
 
 
+REST_FRAMEWORK = {
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+    ],
+}
+
+
 from datetime import timedelta
 
 SIMPLE_JWT = {

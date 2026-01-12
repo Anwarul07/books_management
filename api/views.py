@@ -1,4 +1,5 @@
 from .otp import *
+from api.filters import BooksFilter, CategoryFilter
 from django.db.models import Q
 from django.shortcuts import render
 from django.contrib.auth import logout
@@ -6,7 +7,6 @@ from rest_framework.views import APIView
 from rest_framework.reverse import reverse
 from django.contrib.auth.models import User
 from rest_framework import generics, status
-from rest_framework.response import Response
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
@@ -22,6 +22,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 
 
 User = get_user_model()
+
+
 from .models import Books, Author, Category, Cart, CartItem, CustomUser
 from rest_framework.reverse import reverse
 from .serializers import (
@@ -66,6 +68,41 @@ class BooksView(viewsets.ModelViewSet):
     serializer_class = BooksCreateSerializer
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrAuthorOrReadOnly]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = BooksFilter
+    search_fields = ["title", "category__category_name"]
+    ordering_fields = ["price", "publication_date", "title"]
+
+    def get_queryset(self):
+        queryset = Books.objects.select_related(
+            "author", "author__user", "category"
+        ).all()  # Search
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search)
+                | Q(isbn__icontains=search)
+                | Q(author__user__username__icontains=search)
+                | Q(author__user__first_name__icontains=search)
+                | Q(author__user__last_name__icontains=search)
+            )
+            # Filter by category
+        category = self.request.query_params.get("category")
+        if category:
+            queryset = queryset.filter(
+                category__category_name__iexact=category
+            )  # Filter by availability
+        availability = self.request.query_params.get("availability")
+        if availability is not None:
+            queryset = queryset.filter(availability=availability)  # Filter by author
+        author = self.request.query_params.get("author")
+        if author:
+            queryset = queryset.filter(
+                Q(author__user__username__icontains=author)
+                | Q(author__user__first_name__icontains=author)
+                | Q(author__user__last_name__icontains=author)
+            )
+        return queryset
 
     def perform_create(self, serializer):
         user = self.request.user
