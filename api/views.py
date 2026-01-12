@@ -96,13 +96,6 @@ class BooksView(viewsets.ModelViewSet):
         else:
             serializer.save()
 
-    # def get_object(self)
-    #     obj = super().get_object()
-    #     print(obj)
-    #     if obj.author != self.request.user:
-    #         raise PermissionDenied("You cannot access this book")
-    #     return obj
-
 
 class AuthorView(viewsets.ModelViewSet):
     """AuthorView Only Admin and Author can Crud Thier Own profile"""
@@ -190,6 +183,13 @@ class AuthorSelfView(viewsets.ModelViewSet):
 
         raise PermissionDenied("You are not allowed to update this profile.")
 
+    # def get_object(self):
+    #     obj = super().get_object()
+    #     print(obj)
+    #     if obj.id != self.request.user.id:
+    #         raise PermissionDenied("You cannot access this book")
+    #     return obj
+
 
 class CategoryView(viewsets.ModelViewSet):
     """CategoryView Only Admin and  can Crud Category"""
@@ -207,8 +207,8 @@ class CategoryView(viewsets.ModelViewSet):
 class CartItemView(viewsets.ModelViewSet):
     """CartItmeView Only Admin and Buyer can Crud Thier Own CartItem"""
 
-    serializer_class = CartItemSerializer
     qeuryset = CartItem.objects.all()
+    serializer_class = CartItemSerializer
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAdminOrBuyerOnly]
 
@@ -244,6 +244,13 @@ class CartItemView(viewsets.ModelViewSet):
             return
 
         serializer.save()
+
+    def get_object(self):
+        obj = super().get_object()
+        print(obj.user, self.request.user)
+        if obj.id != self.request.user.id:
+            raise PermissionDenied("You cannot access this book")
+        return obj
 
 
 class CartView(viewsets.ModelViewSet):
@@ -705,8 +712,6 @@ def stats(request):
     return Response(stats)
 
 
-
-
 """
 # List all Types method and Hooks
 
@@ -763,5 +768,3 @@ def stats(request):
 | `options(request, *args, **kwargs)`            | Handle HTTP OPTIONS request         |
 
 """
-
-

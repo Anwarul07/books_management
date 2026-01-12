@@ -1,0 +1,199 @@
+from rest_framework.permissions import BasePermission, SAFE_METHODS
+from .models import CustomUser, Books, Cart, CartItem
+
+
+class BookPermissions(BasePermission):
+    """
+    Permission class for Books.
+    - Admin + Author can create/update/delete books
+    - Authors can only manage books they created
+    - Users (basic_user) can only read the books list
+    - All authenticated users can read
+    """
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            # Unauthenticated users cannot access books
+            return False
+
+        # Read access for all authenticated users
+        if request.method in SAFE_METHODS:
+            return True
+
+        # Write access (create/update/delete) only for Admin and Author
+        return (
+            request.user.role in [CustomUser.ADMIN, CustomUser.AUTHOR]
+            or request.user.is_superuser
+        )
+
+    def has_object_permission(self, request, view, obj):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Admin can do everything
+        if request.user.role == CustomUser.ADMIN or request.user.is_superuser:
+            return True
+
+        # Read access for all authenticated users
+        if request.method in SAFE_METHODS:
+            return True
+
+        # Authors can only manage their own books
+        if request.user.role == CustomUser.AUTHOR:
+            # Check if the book's author's user matches the request user
+            if hasattr(obj, "author"):
+                return obj.author.user == request.user
+
+        # Basic users cannot write
+        return False
+
+
+class AuthorPermissions(BasePermission):
+    """
+    Permission class for Author.
+    - Users & Authors can only access their own author profile
+    - Admin can access all author profiles
+    """
+
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated
+
+    def has_object_permission(self, request, view, obj):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Admin can access everything
+        if request.user.role == CustomUser.ADMIN or request.user.is_superuser:
+            return True
+
+        # Users can only access their own author profile
+        if hasattr(obj, "user"):
+            return obj.user == request.user
+
+        return False
+
+
+class CategoryPermissions(BasePermission):
+    """
+    Permission class for Category.
+    - Only Admin can create/update/delete categories
+    - User & Author only have read access
+    """
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Read access for all authenticated users
+        if request.method in SAFE_METHODS:
+            return True
+
+        # Write access only for Admin
+        return request.user.role == CustomUser.ADMIN or request.user.is_superuser
+
+    def has_object_permission(self, request, view, obj):
+        # Same rules as has_permission
+        return self.has_permission(request, view)
+
+
+class IsCartOwner(BasePermission):
+    """
+    Permission class for Cart and CartItem ownership.
+    Users/Authors can only access their own carts & items.
+    Admin has full access.
+    """
+
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated
+
+    def has_object_permission(self, request, view, obj):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Admin has full access
+        if request.user.role == CustomUser.ADMIN or request.user.is_superuser:
+            return True
+
+        # Check ownership based on object type
+        if isinstance(obj, Cart):
+            return obj.user == request.user
+
+        if isinstance(obj, CartItem):
+            return obj.user == request.user
+
+        return False
+
+
+class UserPermissions(BasePermission):
+    """
+    Permission class for User/CustomUser.
+    - Users & Authors can only access their own data
+    - Admin can access all user data
+    - POST (register) should use AllowAny (handled in view)
+    """
+
+    def has_permission(self, request, view):
+        # POST (register) is handled in view with AllowAny
+        if request.method == "POST":
+            # This will be overridden in the view
+            return request.user and request.user.is_authenticated
+
+        # All other methods require authentication
+        return request.user and request.user.is_authenticated
+
+    def has_object_permission(self, request, view, obj):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Admin can access everything
+        if request.user.role == CustomUser.ADMIN or request.user.is_superuser:
+            return True
+
+        # Users can only access their own data
+        if isinstance(obj, CustomUser):
+            return obj == request.user
+
+        return False
+
+
+class IsAdmin(BasePermission):
+    """
+    Permission class to check if user is Admin.
+    Admin users have full access.
+    """
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.role == CustomUser.ADMIN or request.user.is_superuser
+
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request, view)
+
+
+class IsOwner(BasePermission):
+    """
+    Permission class to check if user owns the object.
+    Users & Authors can only access their own data.
+    """
+
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated
+
+    def has_object_permission(self, request, view, obj):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Admin can access everything
+        if request.user.role == CustomUser.ADMIN or request.user.is_superuser:
+            return True
+
+        # Check if object has user attribute
+        if hasattr(obj, "user"):
+            return obj.user == request.user
+
+        # Check if object is a CustomUser instance
+        if isinstance(obj, CustomUser):
+            return obj == request.user
+
+        return False

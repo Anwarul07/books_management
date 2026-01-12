@@ -307,24 +307,24 @@ class AuthorCreateSerializer(serializers.ModelSerializer):
 
     # Dynamically change user field (admin vs buyer)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
 
-        request = self.context.get("request")
-        if not request:
-            return
+    #     request = self.context.get("request")
+    #     if not request:
+    #         return
 
-        user = request.user
+    #     user = request.user
 
-        if not user.is_authenticated:
-            # self.fields["user"].read_only = True
-            return
-        if not user.is_superuser and user.role != "admin":
-            # self.fields["user"].read_only = True
-            self.fields["user"].default = serializers.CurrentUserDefault()
+    #     if not user.is_authenticated:
+    #         # self.fields["user"].read_only = True
+    #         return
+    #     if not user.is_superuser and user.role != "admin":
+    #         # self.fields["user"].read_only = True
+    #         self.fields["user"].default = serializers.CurrentUserDefault()
 
-        else:
-            self.fields["user"].queryset = CustomUser.objects.filter(role="author")
+    #     else:
+    #         self.fields["user"].queryset = CustomUser.objects.filter(role="author")
 
     def get_fields(self):
         fields = super().get_fields()
