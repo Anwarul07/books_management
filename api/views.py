@@ -15,6 +15,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework import viewsets, permissions
 from django.core.exceptions import PermissionDenied
 from rest_framework.exceptions import ValidationError
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -66,43 +67,44 @@ class BooksView(viewsets.ModelViewSet):
 
     queryset = Books.objects.all()
     serializer_class = BooksCreateSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrAuthorOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = BooksFilter
     search_fields = ["title", "category__category_name"]
     ordering_fields = ["price", "publication_date", "title"]
 
-    def get_queryset(self):
-        queryset = Books.objects.select_related(
-            "author", "author__user", "category"
-        ).all()  # Search
-        search = self.request.query_params.get("search")
-        if search:
-            queryset = queryset.filter(
-                Q(title__icontains=search)
-                | Q(isbn__icontains=search)
-                | Q(author__user__username__icontains=search)
-                | Q(author__user__first_name__icontains=search)
-                | Q(author__user__last_name__icontains=search)
-            )
-            # Filter by category
-        category = self.request.query_params.get("category")
-        if category:
-            queryset = queryset.filter(
-                category__category_name__iexact=category
-            )  # Filter by availability
-        availability = self.request.query_params.get("availability")
-        if availability is not None:
-            queryset = queryset.filter(availability=availability)  # Filter by author
-        author = self.request.query_params.get("author")
-        if author:
-            queryset = queryset.filter(
-                Q(author__user__username__icontains=author)
-                | Q(author__user__first_name__icontains=author)
-                | Q(author__user__last_name__icontains=author)
-            )
-        return queryset
+    # Eiether use Filters or below method for filtering
+    # def get_queryset(self):
+    #     queryset = Books.objects.select_related(
+    #         "author", "author__user", "category"
+    #     ).all()  # Search
+    #     search = self.request.query_params.get("search")
+    #     if search:
+    #         queryset = queryset.filter(
+    #             Q(title__icontains=search)
+    #             | Q(isbn__icontains=search)
+    #             | Q(author__user__username__icontains=search)
+    #             | Q(author__user__first_name__icontains=search)
+    #             | Q(author__user__last_name__icontains=search)
+    #         )
+    #         # Filter by category
+    #     category = self.request.query_params.get("category")
+    #     if category:
+    #         queryset = queryset.filter(
+    #             category__category_name__icontains=category
+    #         )  # Filter by availability
+    #     availability = self.request.query_params.get("availability")
+    #     if availability is not None:
+    #         queryset = queryset.filter(availability=availability)  # Filter by author
+    #     author = self.request.query_params.get("author")
+    #     if author:
+    #         queryset = queryset.filter(
+    #             Q(author__user__username__icontains=author)
+    #             | Q(author__user__first_name__icontains=author)
+    #             | Q(author__user__last_name__icontains=author)
+    #         )
+    #     return queryset
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -139,7 +141,7 @@ class AuthorView(viewsets.ModelViewSet):
 
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrAuthorSpecificOrReadOnly]
 
     def perform_create(self, serializer):
@@ -174,7 +176,7 @@ class AuthorView(viewsets.ModelViewSet):
 class AuthorSelfView(viewsets.ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrAuthorOnly]
 
     def get_queryset(self):
@@ -233,20 +235,21 @@ class CategoryView(viewsets.ModelViewSet):
 
     queryset = Category.objects.all()
     serializer_class = CategoryCreateSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [AllowAny]
     permission_classes = [IsAdminOrReadOnly]
-
-    # filter_backends = [DjangoFilterBackend]
-    # filterset_class = CategoryFilter
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = CategoryFilter
+    search_fields = ["category_name", "origin", "id"]
+    ordering_fields = ["category_name", "id"]
 
 
 class CartItemView(viewsets.ModelViewSet):
     """CartItmeView Only Admin and Buyer can Crud Thier Own CartItem"""
 
-    qeuryset = CartItem.objects.all()
+    queryset = CartItem.objects.all()
     serializer_class = CartItemSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrBuyerOnly]
 
     def get_queryset(self):
@@ -285,8 +288,8 @@ class CartItemView(viewsets.ModelViewSet):
     def get_object(self):
         obj = super().get_object()
         print(obj.user, self.request.user)
-        if obj.id != self.request.user.id:
-            raise PermissionDenied("You cannot access this book")
+        if obj.user != self.request.user and not self.request.user.is_superuser:
+            raise PermissionDenied("You cannot access another user's cart item")
         return obj
 
 
@@ -295,12 +298,12 @@ class CartView(viewsets.ModelViewSet):
 
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrBuyerOnly]
 
-    def get(self, request, *args, **kwargs):
-        print("AUTH:", request.auth)
-        print("USER:", request.user)
+    # def get(self, request, *args, **kwargs):
+    #     print("AUTH:", request.auth)
+    #     print("USER:", request.user)
 
     def get_queryset(self):
         user = self.request.user
@@ -343,7 +346,7 @@ class UserView(viewsets.ModelViewSet):
 
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrAuthorOrBuyerOnly]
 
     def get_serializer_class(self):
@@ -419,7 +422,8 @@ class UserView(viewsets.ModelViewSet):
 class SendOTPView(generics.CreateAPIView):
     http_method_names = ["post"]
     serializer_class = SendOTPSerializer
-    authentication_classes = [SessionAuthentication]
+    throttle_classes = [AnonRateThrottle]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminOrAnonymousOnly]
 
     def create(self, request, *args, **kwargs):
@@ -452,7 +456,7 @@ class SendOTPView(generics.CreateAPIView):
 class UserRegisterView(generics.CreateAPIView):
     http_method_names = ["post"]
     serializer_class = VerifyOTPAndRegisterSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = []
     permission_classes = [IsAdminOrAnonymousOnly]
 
     def create(self, request, *args, **kwargs):
@@ -484,7 +488,7 @@ class SendLoginOTPView(generics.CreateAPIView):
     """
 
     serializer_class = SendLoginOTPSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
@@ -517,7 +521,7 @@ class LoginView(generics.CreateAPIView):
 
 class LogoutView(generics.CreateAPIView):
     serializer_class = LogoutSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
@@ -536,7 +540,7 @@ from rest_framework.permissions import IsAuthenticated
 
 class LogoutAllView(generics.CreateAPIView):
     serializer_class = LogoutAllSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
@@ -551,7 +555,7 @@ class LogoutAllView(generics.CreateAPIView):
 
 class SendPasswordUpdateOTPView(generics.CreateAPIView):
     serializer_class = SendPasswordUpdateOTPSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
@@ -572,7 +576,7 @@ class SendPasswordUpdateOTPView(generics.CreateAPIView):
 
 class UpdatePasswordConfirmView(generics.CreateAPIView):
     serializer_class = VerifyOTPAndUpdatePasswordSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
@@ -593,7 +597,7 @@ class UpdatePasswordConfirmView(generics.CreateAPIView):
 
 class SendForgetPasswordOTPView(generics.CreateAPIView):
     serializer_class = SendForgetPasswordOTPSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
@@ -615,7 +619,7 @@ class SendForgetPasswordOTPView(generics.CreateAPIView):
 
 class ForgetPasswordConfirmView(generics.CreateAPIView):
     serializer_class = VerifyOTPAndResetPasswordSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
@@ -637,7 +641,7 @@ class ForgetPasswordConfirmView(generics.CreateAPIView):
 
 class SendUserDeleteOTPView(generics.CreateAPIView):
     serializer_class = SendUserDeleteOTPSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
@@ -658,7 +662,7 @@ class SendUserDeleteOTPView(generics.CreateAPIView):
 
 class DeleteUserConfirmView(generics.CreateAPIView):
     serializer_class = VerifyOTPAndDeleteUserSerializer
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
