@@ -1,10 +1,6 @@
 # # filters.py
 import django_filters
-from .models import Books
-
-
-import django_filters
-from .models import Books
+from .models import Books, Category
 
 
 class BooksFilter(django_filters.FilterSet):
@@ -43,6 +39,6 @@ class CategoryFilter(django_filters.FilterSet):
     )
     origin = django_filters.CharFilter(field_name="origin", lookup_expr="icontains")
 
-    # class Meta:
-    #     model = Category
-    #     fields = []
+    class Meta:
+        model = Category
+        fields = []

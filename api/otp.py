@@ -1,4 +1,5 @@
 import random
+import threading
 from .models import OTP
 from datetime import timedelta
 from twilio.rest import Client
@@ -8,7 +9,6 @@ from rest_framework import serializers
 from django.core.mail import send_mail
 from django.utils.html import strip_tags
 from django.template.loader import render_to_string
-
 
 
 OTP_RESEND_COOLDOWN = 120  # seconds (2 minutes)
@@ -42,6 +42,10 @@ def send_email_otp(email, otp):
         html_message=html_message,
         fail_silently=True,  # safer for prod
     )
+
+
+def send_email_otp(email, otp):
+    threading.Thread(target=send_email_otp, args=(email, otp)).start()
 
 
 def send_sms_otp(mobile, otp):

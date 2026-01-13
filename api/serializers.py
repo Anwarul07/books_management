@@ -14,6 +14,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth.hashers import check_password
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.token_blacklist.models import (
     OutstandingToken,
     BlacklistedToken,
@@ -739,9 +740,6 @@ class SendOTPSerializer(serializers.Serializer):
         return otp
 
 
-from django.contrib.auth.hashers import check_password
-
-
 class VerifyOTPAndRegisterSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     mobile = serializers.CharField(max_length=10, required=True)  # REQUIRED FOR USER
@@ -837,18 +835,12 @@ class VerifyOTPAndRegisterSerializer(serializers.Serializer):
     # return user
 
 
-# from django.contrib.auth import authenticate
-# from django.contrib.auth.hashers import check_password
-# from rest_framework import serializers
-# from rest_framework_simplejwt.tokens import RefreshToken
-
-
 class SendLoginOTPSerializer(serializers.Serializer):
     otp_via = serializers.ChoiceField(choices=[OTP.EMAIL, OTP.SMS])
     email = serializers.EmailField(required=False)
     mobile = serializers.CharField(required=False)
 
-    def validate(self, data):
+    def validate(self, data): 
         if data["otp_via"] == OTP.EMAIL and not data.get("email"):
             raise serializers.ValidationError("Email required.")
 
@@ -1105,11 +1097,6 @@ class SendPasswordUpdateOTPSerializer(serializers.Serializer):
         return otp
 
 
-from django.contrib.auth.hashers import check_password
-from django.contrib.auth.password_validation import validate_password
-from rest_framework_simplejwt.tokens import RefreshToken
-
-
 class VerifyOTPAndUpdatePasswordSerializer(serializers.Serializer):
     otp = serializers.CharField(write_only=True)
     new_password = serializers.CharField(write_only=True)
@@ -1276,9 +1263,6 @@ class SendForgetPasswordOTPSerializer(serializers.Serializer):
             send_sms_otp(user.mobile, otp_code)
 
         return otp
-
-
-from django.contrib.auth.password_validation import validate_password
 
 
 class VerifyOTPAndResetPasswordSerializer(serializers.Serializer):
