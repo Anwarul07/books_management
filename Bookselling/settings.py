@@ -44,7 +44,15 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "api.middlewares.MaintenanceModeMiddleware",
+    "api.middlewares.HandleInvalidURLMiddleware",
 ]
+MAINTENANCE_MODE = config("MAINTENANCE_MODE", "false").lower() == "true"
+EXCLUDED_PATHS = [
+    "/admin/",
+    "/static/",
+]
+print(MAINTENANCE_MODE)
 
 ROOT_URLCONF = "Bookselling.urls"
 
@@ -57,7 +65,8 @@ TEMPLATES = [
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
-                "django.template.context_processors.request",
+              "django.template.context_processors.request",
+                "django.template.context_processors.debug",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
             ],
